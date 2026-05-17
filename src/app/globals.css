@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+@import "tailwindcss";
+
+:root {
+  --ink:        #1a1815;
+  --ink-soft:   #5c574e;
+  --paper:      #f7f4ee;
+  --paper-warm: #efe9dd;
+  --rule:       #d6cfc0;
+  --accent:     #6b4423;
+  --ok:         #2d6a3e;
+  --warn:       #b88200;
+  --danger:     #a8341c;
+}
+
+html, body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+}
+
+.font-display { font-family: 'Fraunces', serif; }
+.font-mono    { font-family: 'JetBrains Mono', monospace; }
+
+.alert-ok     { color: var(--ok); }
+.alert-warn   { color: var(--warn); }
+.alert-danger { color: var(--danger); }
+.alert-neutral{ color: var(--ink-soft); }
