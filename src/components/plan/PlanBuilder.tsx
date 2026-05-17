@@ -6,9 +6,11 @@ import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
 import { MEAL_LABELS, MEAL_SLOTS, calculateTotals } from '@/lib/nutrition';
 import type { ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
+import { ageInYears } from '@/lib/calculations/age';
 import FoodSearch from './FoodSearch';
 import MealSection from './MealSection';
 import TotalsPanel from './TotalsPanel';
+import MacroPanel from './MacroPanel';
 
 interface Props {
   plan: MealPlan;
@@ -148,9 +150,16 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
         />
       </div>
 
-      {/* Right: totals panel */}
-      <div className="w-72 shrink-0">
+      {/* Right: totals + macros */}
+      <div className="w-72 shrink-0 flex flex-col gap-4">
         <TotalsPanel totals={totals} targets={targets} vct={vct} />
+        {vct && patient.birth_date && (
+          <MacroPanel
+            vctKcal={vct.vct}
+            ageYears={ageInYears(new Date(patient.birth_date))}
+            weightKg={vct.weightUsed}
+          />
+        )}
       </div>
     </div>
   );

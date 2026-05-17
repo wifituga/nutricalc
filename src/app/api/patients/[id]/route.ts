@@ -21,7 +21,10 @@ const patchSchema = z.object({
   protein_factor_override: z.number().positive().nullish(),
   comorbidities:           z.array(z.string()).optional(),
   notes:                   z.string().nullish(),
-});
+}).refine(
+  (d) => !d.physiological_state?.startsWith('pregnancy') || d.weight_pregest_kg != null,
+  { message: 'El peso pregestacional es obligatorio en embarazo', path: ['weight_pregest_kg'] },
+);
 
 type Ctx = { params: Promise<{ id: string }> };
 
