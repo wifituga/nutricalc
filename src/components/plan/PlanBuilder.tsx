@@ -48,11 +48,14 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
     startTransition(() => setItems((prev) => [...prev, newItem]));
   }, [plan.id, activeMeal, items]);
 
-  const updateGrams = useCallback(async (itemId: string, grams: number) => {
+  const updateItem = useCallback(async (
+    itemId: string,
+    patch: { grams: number; household_measure_id?: number | null; household_measure_qty?: number | null },
+  ) => {
     const res = await fetch(`/api/plans/items/${itemId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ grams }),
+      body: JSON.stringify(patch),
     });
     if (!res.ok) return;
     const updated = await res.json() as MealPlanItem & { foods: Food };
@@ -145,7 +148,7 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
         {/* Meal items */}
         <MealSection
           items={items.filter((i) => i.meal === activeMeal)}
-          onUpdateGrams={updateGrams}
+          onUpdateItem={updateItem}
           onRemove={removeItem}
         />
       </div>

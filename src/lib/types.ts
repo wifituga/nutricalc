@@ -114,12 +114,22 @@ export interface MealPlan {
   updated_at: string;
 }
 
+export interface HouseholdMeasure {
+  id: number;
+  food_id: number;
+  measure_name: string;
+  grams: number;
+  edible_pct: number | null;
+}
+
 export interface MealPlanItem {
   id: string;
   meal_plan_id: string;
   food_id: number;
   meal: MealSlot;
   grams: number;
+  household_measure_id: number | null;
+  household_measure_qty: number | null;
   position: number;
   notes: string | null;
   food?: Food;

@@ -1,4 +1,19 @@
-import type { FoodNutrients, MealPlanItem, Food, AlertLevel, NutrientLimit, NutrientTotals } from './types';
+import type { FoodNutrients, MealPlanItem, Food, AlertLevel, NutrientLimit, NutrientTotals, HouseholdMeasure } from './types';
+
+/**
+ * Effective grams of an item: when a household measure is selected,
+ * grams = measure.grams × qty; otherwise the raw grams field.
+ */
+export function resolveGrams(
+  item: Pick<MealPlanItem, 'grams' | 'household_measure_id' | 'household_measure_qty'>,
+  measures?: Map<number, HouseholdMeasure>,
+): number {
+  if (item.household_measure_id && measures) {
+    const m = measures.get(item.household_measure_id);
+    if (m) return m.grams * (item.household_measure_qty ?? 1);
+  }
+  return item.grams;
+}
 
 export function calculateTotals(items: MealPlanItem[], foods: Map<number, Food>): NutrientTotals {
   const totals: Record<string, number> = {};
