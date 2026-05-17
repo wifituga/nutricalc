@@ -7,6 +7,7 @@ import { MEAL_LABELS, MEAL_SLOTS, calculateTotals } from '@/lib/nutrition';
 import type { ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
 import { ageInYears } from '@/lib/calculations/age';
+import { calculateAbsorbableIron, shouldShowAbsorbableIron } from '@/lib/calculations/ironBioavailability';
 import FoodSearch from './FoodSearch';
 import MealSection from './MealSection';
 import TotalsPanel from './TotalsPanel';
@@ -30,6 +31,17 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
 
   const foodsMap = new Map<number, Food>(items.map((i) => [i.food_id, i.foods]));
   const totals = calculateTotals(items, foodsMap);
+
+  const ageYears = patient.birth_date ? ageInYears(new Date(patient.birth_date)) : null;
+  const showIron = shouldShowAbsorbableIron({
+    sex: patient.sex,
+    ageYears,
+    physiologicalState: patient.physiological_state,
+    comorbidities: patient.comorbidities,
+  });
+  const iron = showIron
+    ? calculateAbsorbableIron(items.map((i) => ({ food: i.foods, grams: i.grams })))
+    : null;
 
   const addFood = useCallback(async (food: Food) => {
     const res = await fetch('/api/plans/items', {
@@ -155,11 +167,11 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
 
       {/* Right: totals + macros */}
       <div className="w-72 shrink-0 flex flex-col gap-4">
-        <TotalsPanel totals={totals} targets={targets} vct={vct} />
-        {vct && patient.birth_date && (
+        <TotalsPanel totals={totals} targets={targets} vct={vct} iron={iron} />
+        {vct && ageYears != null && (
           <MacroPanel
             vctKcal={vct.vct}
-            ageYears={ageInYears(new Date(patient.birth_date))}
+            ageYears={ageYears}
             weightKg={vct.weightUsed}
           />
         )}

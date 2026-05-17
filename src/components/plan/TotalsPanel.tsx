@@ -4,12 +4,14 @@ import { NUTRIENT_LABELS, PRIMARY_NUTRIENTS } from '@/lib/nutrition';
 import type { NutrientTotals, FoodNutrients } from '@/lib/types';
 import { getTargetLevel, type ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
+import type { IronResult } from '@/lib/calculations/ironBioavailability';
 import AlertBadge from '@/components/ui/AlertBadge';
 
 interface Props {
   totals: NutrientTotals;
   targets: ResolvedTargets;
   vct: VCTBreakdown | null;
+  iron?: IronResult | null;
 }
 
 function fmt(n: number) {
@@ -24,7 +26,7 @@ function targetText(t: NonNullable<ResolvedTargets[keyof ResolvedTargets]>) {
   return `${parts.join(' · ')} ${t.unit}`;
 }
 
-export default function TotalsPanel({ totals, targets, vct }: Props) {
+export default function TotalsPanel({ totals, targets, vct, iron }: Props) {
   const primaryKeys = PRIMARY_NUTRIENTS;
   const otherKeys = (Object.keys(NUTRIENT_LABELS) as (keyof FoodNutrients)[])
     .filter((k) => !primaryKeys.includes(k));
@@ -81,6 +83,32 @@ export default function TotalsPanel({ totals, targets, vct }: Props) {
           );
         })}
       </div>
+
+      {iron && (
+        <div className="px-4 pb-3 border-t" style={{ borderColor: 'var(--rule)' }}>
+          <p
+            className="text-xs uppercase tracking-wide mt-3 mb-1.5"
+            style={{ color: 'var(--ink-soft)' }}
+            title="Hierro absorbible estimado — fórmula Monsen 1978 (hem 25%, no-hem según potenciadores)"
+          >
+            Hierro absorbible (Monsen)
+          </p>
+          <div className="flex justify-between text-xs py-0.5" style={{ color: 'var(--ink-soft)' }}>
+            <span>Hierro total</span>
+            <span className="font-mono">{fmt(iron.totalIron)} mg</span>
+          </div>
+          <div className="flex justify-between text-xs py-0.5" style={{ color: 'var(--ink-soft)' }}>
+            <span>Absorbible estimado</span>
+            <span className="font-mono" style={{ color: 'var(--ink)' }}>
+              {fmt(iron.absorbable)} mg
+            </span>
+          </div>
+          <div className="flex justify-between text-xs py-0.5" style={{ color: 'var(--ink-soft)' }}>
+            <span>Factor no-hem</span>
+            <span className="font-mono">×{iron.factor}</span>
+          </div>
+        </div>
+      )}
 
       <details className="px-4 pb-3">
         <summary className="text-xs cursor-pointer py-2" style={{ color: 'var(--ink-soft)' }}>
