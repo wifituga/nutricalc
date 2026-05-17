@@ -21,12 +21,29 @@ const GROUPS = [
   { letter: 'U', label: 'U · Tubérculos' },
 ];
 
+function highlight(text: string, q: string) {
+  const term = q.trim();
+  if (!term) return text;
+  const i = text.toLowerCase().indexOf(term.toLowerCase());
+  if (i < 0) return text;
+  return (
+    <>
+      {text.slice(0, i)}
+      <mark style={{ background: 'transparent', color: 'var(--accent)', fontWeight: 600 }}>
+        {text.slice(i, i + term.length)}
+      </mark>
+      {text.slice(i + term.length)}
+    </>
+  );
+}
+
 export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => void }) {
   const [query, setQuery] = useState('');
   const [group, setGroup] = useState('');
   const [results, setResults] = useState<Food[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +54,7 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
       const res = await fetch(`/api/foods?${params}`);
       const json = await res.json();
       setResults(json.data ?? []);
+      setActive(0);
       setOpen(true);
     } finally {
       setLoading(false);
@@ -68,6 +86,23 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
     setQuery('');
     setOpen(false);
     setResults([]);
+    setActive(0);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!open || results.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActive((a) => Math.min(a + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive((a) => Math.max(a - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (results[active]) handleSelect(results[active]);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
   }
 
   return (
@@ -77,7 +112,8 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder="Buscar alimento TPCA..."
+          onKeyDown={handleKeyDown}
+          placeholder="Buscar alimento TPCA... (↑↓ Enter)"
           className="w-full px-3 py-2 rounded border text-sm focus:outline-none"
           style={{ background: 'var(--paper-warm)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
         />
@@ -104,12 +140,16 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
           className="absolute top-full left-0 right-12 z-50 mt-1 rounded-lg border shadow-sm overflow-hidden"
           style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
         >
-          {results.map((food) => (
+          {results.map((food, i) => (
             <button
               key={food.id}
               onClick={() => handleSelect(food)}
-              className="w-full text-left px-4 py-2.5 border-b last:border-b-0 hover:opacity-80 transition-opacity"
-              style={{ borderColor: 'var(--rule)' }}
+              onMouseEnter={() => setActive(i)}
+              className="w-full text-left px-4 py-2.5 border-b last:border-b-0 transition-colors"
+              style={{
+                borderColor: 'var(--rule)',
+                background: i === active ? 'var(--paper-warm)' : 'transparent',
+              }}
             >
               <div className="flex items-center gap-2">
                 <span
@@ -119,7 +159,7 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
                   {food.code}
                 </span>
                 <span className="text-sm truncate" style={{ color: 'var(--ink)' }} title={food.name}>
-                  {food.name}
+                  {highlight(food.name, query)}
                 </span>
                 <span className="text-xs ml-auto shrink-0" style={{ color: 'var(--ink-soft)' }}>
                   {food.per_100g.energia_kcal != null

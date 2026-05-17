@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Home, Users } from 'lucide-react';
 import { logout } from '@/app/login/actions';
 
 const NAV = [
-  { href: '/dashboard', label: 'Inicio' },
-  { href: '/patients', label: 'Pacientes' },
+  { href: '/dashboard', label: 'Inicio', icon: Home },
+  { href: '/patients', label: 'Pacientes', icon: Users },
 ];
 
 export default function Sidebar({ userName, clinicName }: { userName: string; clinicName: string }) {
@@ -29,19 +30,20 @@ export default function Sidebar({ userName, clinicName }: { userName: string; cl
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-0.5">
-        {NAV.map(({ href, label }) => {
+        {NAV.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link
               key={href}
               href={href}
-              className="block px-3 py-2 rounded text-sm transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2 rounded text-sm transition-colors"
               style={{
                 background: active ? 'var(--paper)' : 'transparent',
                 color: active ? 'var(--ink)' : 'var(--ink-soft)',
                 fontWeight: active ? 500 : 400,
               }}
             >
+              <Icon size={15} />
               {label}
             </Link>
           );

@@ -1,31 +1,21 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import NewPlanButton from '@/components/ui/NewPlanButton';
 import DeletePatientButton from '@/components/ui/DeletePatientButton';
+import { FormCard, classifyIMC, btnSecondary } from '@/components/ui/form-primitives';
 import { ageInYears } from '@/lib/calculations/age';
 import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
 import { COMORBIDITY_LABELS } from '@/lib/calculations/clinicalOverrides';
 import RequirementsDetail from '@/components/plan/RequirementsDetail';
 
 const PHYSIO_LABELS: Record<string, string> = {
-  standard:         '',
-  pregnancy_t1:     'Embarazo T1',
-  pregnancy_t2:     'Embarazo T2',
-  pregnancy_t3:     'Embarazo T3',
-  lactation_0_6m:   'Lactancia 0-6m',
-  lactation_6_12m:  'Lactancia 6-12m',
+  pregnancy_t1: 'Embarazo T1', pregnancy_t2: 'Embarazo T2', pregnancy_t3: 'Embarazo T3',
+  lactation_0_6m: 'Lactancia 0-6m', lactation_6_12m: 'Lactancia 6-12m',
 };
-
-const LIFESTYLE_LABELS: Record<string, string> = {
-  ligero:     'Ligero',
-  no_ligero:  'No ligero',
-};
-
-const AREA_LABELS: Record<string, string> = {
-  urbana: 'Urbana',
-  rural:  'Rural',
-};
+const AREA_LABELS: Record<string, string> = { urbana: 'Urbana', rural: 'Rural' };
+const LIFESTYLE_LABELS: Record<string, string> = { ligero: 'Ligero', no_ligero: 'No ligero' };
 
 export default async function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -35,188 +25,225 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
     supabase.from('patients').select('*').eq('id', id).single(),
     supabase
       .from('meal_plans')
-      .select('id, name, plan_date, notes')
+      .select('id, name, plan_date, notes, calculated_vct')
       .eq('patient_id', id)
       .order('plan_date', { ascending: false }),
   ]);
 
   if (!patient) notFound();
 
-  const today = new Date();
-  const age = patient.birth_date ? ageInYears(new Date(patient.birth_date), today) : null;
-
+  const age = patient.birth_date ? ageInYears(new Date(patient.birth_date)) : null;
   const { vct, merged, comorbidities } = await resolvePatientTargets(supabase, patient);
 
+  const isOlder = age != null && age >= 60;
   const physioLabel = patient.physiological_state
     ? PHYSIO_LABELS[patient.physiological_state] ?? ''
     : '';
+  const imc = patient.height_cm && patient.weight_kg
+    ? patient.weight_kg / Math.pow(patient.height_cm / 100, 2)
+    : null;
+  const conflicts = Object.values(merged).filter((m) => m.conflict);
 
   return (
-    <div className="max-w-3xl">
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <Link href="/patients" className="text-xs hover:underline" style={{ color: 'var(--ink-soft)' }}>
-            ← Pacientes
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <header className="flex items-start justify-between gap-4 pb-4 border-b" style={{ borderColor: 'var(--rule)' }}>
+        <div className="min-w-0 flex-1">
+          <Link href="/patients" className="text-xs inline-flex items-center gap-1 mb-2 hover:underline"
+            style={{ color: 'var(--ink-soft)' }}>
+            <ArrowLeft size={12} /> Volver a pacientes
           </Link>
-          <h1 className="font-display text-2xl font-semibold mt-1" style={{ color: 'var(--ink)' }}>
+          <h1 className="font-display text-3xl font-medium leading-tight truncate" style={{ color: 'var(--ink)' }}>
             {patient.full_name}
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--ink-soft)' }}>
-            {comorbidities.length > 0
-              ? comorbidities.map((c) => COMORBIDITY_LABELS[c] ?? c).join(' · ')
-              : 'Sin comorbilidades'}
-            {physioLabel ? ` · ${physioLabel}` : ''}
-            {age !== null ? ` · ${age} años` : ''}
-            {patient.sex ? ` · ${patient.sex === 'M' ? 'Masculino' : 'Femenino'}` : ''}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-sm" style={{ color: 'var(--ink-soft)' }}>
+            {age != null && <span>{age} años</span>}
+            {patient.sex && <><Sep /><span>{patient.sex === 'F' ? 'Femenino' : 'Masculino'}</span></>}
+            {patient.document_id && <><Sep /><span className="font-mono text-xs">{patient.document_id}</span></>}
+            {isOlder && <Badge variant="info">Adulto mayor</Badge>}
+            {patient.is_athlete && <Badge variant="accent">Deportista</Badge>}
+            {physioLabel && <Badge variant="warn">{physioLabel}</Badge>}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/patients/${id}/edit`}
-            className="px-3 py-1.5 rounded border text-sm"
-            style={{ borderColor: 'var(--rule)', color: 'var(--ink)' }}
-          >
+        <div className="flex gap-2 shrink-0">
+          <Link href={`/patients/${id}/edit`} className={btnSecondary}
+            style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink)' }}>
             Editar
           </Link>
           <DeletePatientButton patientId={id} />
         </div>
-      </div>
+      </header>
 
-      {/* ── Datos antropométricos ── */}
-      <div
-        className="rounded-lg border p-5 mb-4 grid grid-cols-3 gap-4"
-        style={{ background: 'var(--paper-warm)', borderColor: 'var(--rule)' }}
-      >
-        <InfoItem label="DNI" value={patient.document_id ?? '—'} />
-        <InfoItem label="Talla" value={patient.height_cm ? `${patient.height_cm} cm` : '—'} />
-        <InfoItem label="Peso" value={patient.weight_kg ? `${patient.weight_kg} kg` : '—'} />
-        {patient.weight_pregest_kg && (
-          <InfoItem label="Peso pregest." value={`${patient.weight_pregest_kg} kg`} />
-        )}
-        {patient.residence_area && (
-          <InfoItem label="Área" value={AREA_LABELS[patient.residence_area] ?? patient.residence_area} />
-        )}
-        {patient.lifestyle && (
-          <InfoItem label="Actividad" value={LIFESTYLE_LABELS[patient.lifestyle] ?? patient.lifestyle} />
-        )}
-        {patient.is_athlete && (
-          <InfoItem label="Deportista" value="Sí" />
-        )}
-        {patient.notes && (
-          <div className="col-span-3">
-            <p className="text-xs uppercase tracking-wide mb-0.5" style={{ color: 'var(--ink-soft)' }}>Notas</p>
-            <p className="text-sm" style={{ color: 'var(--ink)' }}>{patient.notes}</p>
-          </div>
-        )}
-      </div>
-
-      {/* ── VCT Block ── */}
-      {vct ? (
-        <div
-          className="rounded-lg border p-5 mb-6"
-          style={{ background: 'var(--paper-warm)', borderColor: 'var(--rule)' }}
-        >
-          <h2 className="font-display text-base font-semibold mb-3" style={{ color: 'var(--ink)' }}>
-            Requerimiento energético (FAO/OMS · CENAN Perú)
-          </h2>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            {vct.tmb > 0 && (
-              <>
-                <VctRow label="TMB" value={`${Math.round(vct.tmb)} kcal/día`} />
-                <VctRow label="NAF" value={vct.naf?.toString() ?? '—'} />
-                <VctRow label="GET" value={`${Math.round(vct.get)} kcal/día`} />
-              </>
-            )}
-            {vct.tmb === 0 && (
-              <VctRow label="GET" value={`${Math.round(vct.get)} kcal/día`} />
-            )}
-            {vct.encdt > 0 && (
-              <VctRow label="ENCDT" value={`+${vct.encdt} kcal/día`} />
-            )}
-            {vct.adicion > 0 && (
-              <VctRow label="Adición fisiológica" value={`+${vct.adicion} kcal/día`} />
-            )}
-            <div className="col-span-2 mt-1 pt-2 border-t flex justify-between font-semibold"
-              style={{ borderColor: 'var(--rule)', color: 'var(--ink)' }}
-            >
-              <span>VCT</span>
-              <span>{Math.round(vct.vct)} kcal/día</span>
-            </div>
-          </div>
-          {vct.weightSource !== 'actual' && (
-            <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>
-              * Cálculo con{' '}
-              {vct.weightSource === 'healthy' ? 'peso saludable' : 'peso pregestacional'}{' '}
-              ({vct.weightUsed.toFixed(1)} kg)
+      {/* CTA crear plan */}
+      {vct && (
+        <section className="rounded-lg p-5 flex items-center justify-between"
+          style={{ background: 'var(--accent)', color: 'var(--paper)', boxShadow: 'var(--shadow-card)' }}>
+          <div>
+            <h2 className="font-display text-lg font-medium mb-1">¿Listo para armar un plan?</h2>
+            <p className="text-sm opacity-90">
+              VCT objetivo: <span className="font-mono font-medium">{Math.round(vct.vct)} kcal/día</span>
             </p>
+          </div>
+          <NewPlanButton patientId={id} />
+        </section>
+      )}
+
+      {/* Perfil clínico */}
+      {comorbidities.length > 0 && (
+        <FormCard title="Perfil clínico activo">
+          <div className="flex flex-wrap gap-2">
+            {comorbidities.map((c) => (
+              <Badge key={c} variant="clinical">{COMORBIDITY_LABELS[c] ?? c}</Badge>
+            ))}
+          </div>
+          {conflicts.length > 0 && (
+            <div className="border rounded-md px-4 py-3 text-sm"
+              style={{ background: '#fdf6e3', borderColor: 'var(--warn)', color: 'var(--ink)' }}>
+              <strong>Conflicto clínico detectado.</strong> Hay rangos incompatibles
+              entre comorbilidades — requiere decisión clínica manual (ver detalle).
+            </div>
+          )}
+        </FormCard>
+      )}
+
+      {/* Antropometría */}
+      <FormCard title="Antropometría">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <DataCell label="Talla" value={patient.height_cm ? `${patient.height_cm} cm` : '—'} />
+          <DataCell label="Peso actual" value={patient.weight_kg ? `${patient.weight_kg} kg` : '—'} />
+          {patient.weight_pregest_kg && (
+            <DataCell label="Peso pregest." value={`${patient.weight_pregest_kg} kg`} />
+          )}
+          {imc != null && (
+            <DataCell label="IMC actual" value={imc.toFixed(1)} hint={classifyIMC(imc)} />
+          )}
+          {vct && (
+            <DataCell label="Peso usado" value={`${vct.weightUsed.toFixed(1)} kg`}
+              hint={vct.weightSource === 'actual' ? 'actual'
+                : vct.weightSource === 'healthy' ? 'saludable' : 'pregestacional'} />
+          )}
+          {patient.residence_area && (
+            <DataCell label="Área" value={AREA_LABELS[patient.residence_area] ?? patient.residence_area} />
+          )}
+          {patient.lifestyle && (
+            <DataCell label="Actividad" value={LIFESTYLE_LABELS[patient.lifestyle] ?? patient.lifestyle} />
           )}
         </div>
+        {patient.notes && (
+          <p className="text-sm pt-2 border-t" style={{ color: 'var(--ink)', borderColor: 'var(--rule)' }}>
+            {patient.notes}
+          </p>
+        )}
+      </FormCard>
+
+      {/* Requerimiento energético */}
+      {vct ? (
+        <FormCard title="Requerimiento energético" subtitle="FAO/OMS 2004 · adaptación CENAN Perú">
+          <div className="space-y-2">
+            {vct.tmb > 0 && <EnergyRow label="TMB" value={`${Math.round(vct.tmb)} kcal/día`} />}
+            {vct.naf != null && <EnergyRow label="NAF" value={vct.naf.toFixed(2)} />}
+            <EnergyRow label="GET" value={`${Math.round(vct.get)} kcal/día`} />
+            {vct.encdt > 0 && <EnergyRow label="ENCDT (crecimiento)" value={`+${vct.encdt} kcal/día`} />}
+            {vct.adicion > 0 && <EnergyRow label="Adición fisiológica" value={`+${vct.adicion} kcal/día`} />}
+            <div className="pt-2 mt-1 border-t" style={{ borderColor: 'var(--rule)' }}>
+              <EnergyRow label="VCT" value={`${Math.round(vct.vct)} kcal/día`} highlight />
+            </div>
+          </div>
+        </FormCard>
       ) : (
-        <div
-          className="rounded-lg border p-4 mb-6 text-sm"
-          style={{ borderColor: 'var(--rule)', background: 'var(--paper-warm)', color: 'var(--ink-soft)' }}
-        >
-          Complete fecha de nacimiento, sexo, talla, peso, área de residencia y nivel de actividad
-          para calcular el VCT.
-        </div>
+        <FormCard title="Requerimiento energético">
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+            Complete fecha de nacimiento, sexo, talla, peso, área de residencia y nivel
+            de actividad para calcular el VCT.
+          </p>
+        </FormCard>
       )}
 
-      {/* ── Detalle por comorbilidad ── */}
       <RequirementsDetail merged={merged} comorbidities={comorbidities} />
 
-      {/* ── Planes ── */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-display text-lg font-semibold" style={{ color: 'var(--ink)' }}>Planes</h2>
-        <NewPlanButton patientId={id} />
-      </div>
-
-      {plans && plans.length > 0 ? (
-        <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--rule)' }}>
-          {plans.map((plan) => (
-            <Link
-              key={plan.id}
-              href={`/patients/${id}/plans/${plan.id}`}
-              className="flex items-center justify-between px-4 py-3 border-b last:border-b-0 hover:opacity-80"
-              style={{ borderColor: 'var(--rule)', background: 'var(--paper-warm)' }}
-            >
-              <div>
-                <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>{plan.name}</p>
-                {plan.notes && (
-                  <p className="text-xs truncate max-w-md" style={{ color: 'var(--ink-soft)' }}>{plan.notes}</p>
-                )}
-              </div>
-              <span className="font-mono text-xs shrink-0 ml-4" style={{ color: 'var(--ink-soft)' }}>
-                {plan.plan_date}
-              </span>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div
-          className="rounded-lg border p-8 text-center"
-          style={{ borderColor: 'var(--rule)', background: 'var(--paper-warm)' }}
-        >
-          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>Sin planes aún.</p>
-        </div>
-      )}
+      {/* Planes */}
+      <section>
+        <header className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-xl font-medium" style={{ color: 'var(--ink)' }}>Planes</h2>
+          <NewPlanButton patientId={id} />
+        </header>
+        {plans && plans.length > 0 ? (
+          <div className="space-y-2">
+            {plans.map((plan) => (
+              <Link key={plan.id} href={`/patients/${id}/plans/${plan.id}`}
+                className="block bg-white border rounded-lg p-4 hover:opacity-90 transition-opacity"
+                style={{ borderColor: 'var(--rule)', boxShadow: 'var(--shadow-card)' }}>
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium truncate" style={{ color: 'var(--ink)' }}>{plan.name}</h3>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--ink-soft)' }}>
+                      {plan.plan_date}
+                      {plan.calculated_vct ? ` · ${Math.round(plan.calculated_vct)} kcal` : ''}
+                    </p>
+                  </div>
+                  <ChevronRight size={16} style={{ color: 'var(--ink-soft)' }} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white border border-dashed rounded-lg p-8 text-center"
+            style={{ borderColor: 'var(--rule)' }}>
+            <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>Sin planes aún.</p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
+function Sep() {
+  return <span style={{ color: 'var(--rule)' }}>·</span>;
+}
+
+function DataCell({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide mb-0.5" style={{ color: 'var(--ink-soft)' }}>{label}</p>
-      <p className="font-mono text-sm" style={{ color: 'var(--ink)' }}>{value}</p>
+      <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--ink-soft)' }}>
+        {label}
+      </div>
+      <div className="font-mono text-sm" style={{ color: 'var(--ink)' }}>
+        {value}
+        {hint && <span className="text-xs ml-1.5" style={{ color: 'var(--ink-soft)' }}>{hint}</span>}
+      </div>
     </div>
   );
 }
 
-function VctRow({ label, value }: { label: string; value: string }) {
+function EnergyRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <>
-      <span style={{ color: 'var(--ink-soft)' }}>{label}</span>
-      <span className="text-right font-mono" style={{ color: 'var(--ink)' }}>{value}</span>
-    </>
+    <div className="flex justify-between items-baseline">
+      <span className={highlight ? 'font-display text-base font-medium' : 'text-sm'}
+        style={{ color: highlight ? 'var(--ink)' : 'var(--ink-soft)' }}>
+        {label}
+      </span>
+      <span className={`font-mono ${highlight ? 'text-lg font-medium' : 'text-sm'}`}
+        style={{ color: 'var(--ink)' }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function Badge({ variant, children }: {
+  variant: 'info' | 'warn' | 'accent' | 'clinical';
+  children: React.ReactNode;
+}) {
+  const styleMap = {
+    info:     { background: '#eaf2fb', color: '#1e4a73', borderColor: '#b9d4ee' },
+    warn:     { background: '#fdf6e3', color: '#7a5a00', borderColor: 'var(--warn)' },
+    accent:   { background: 'var(--paper-warm)', color: 'var(--accent)', borderColor: 'var(--rule)' },
+    clinical: { background: 'var(--paper-warm)', color: 'var(--ink)', borderColor: 'var(--rule)' },
+  }[variant];
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium"
+      style={styleMap}>
+      {children}
+    </span>
   );
 }

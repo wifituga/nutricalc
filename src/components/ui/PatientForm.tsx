@@ -5,73 +5,86 @@ import { useState } from 'react';
 import type { Patient, PhysiologicalState } from '@/lib/types';
 import { SELECTABLE_COMORBIDITIES } from '@/lib/calculations/clinicalOverrides';
 import { ageInYears } from '@/lib/calculations/age';
+import {
+  FormCard, FormRow, Field, RadioPill, CheckboxRow, NumberInput,
+  InfoCard, LiveAnthropometryBlock, inputClass, btnPrimary, btnSecondary,
+} from './form-primitives';
+
+type Data = Partial<{
+  full_name: string;
+  document_id: string;
+  birth_date: string;
+  sex: 'M' | 'F';
+  height_cm: number;
+  weight_kg: number;
+  weight_pregest_kg: number;
+  physiological_state: PhysiologicalState;
+  residence_area: 'urbana' | 'rural';
+  lifestyle: 'ligero' | 'no_ligero';
+  is_athlete: boolean;
+  protein_factor_override: number;
+  comorbidities: string[];
+  notes: string;
+}>;
 
 const PHYSIO_OPTIONS: { value: PhysiologicalState; label: string }[] = [
-  { value: 'standard',         label: 'Estándar' },
-  { value: 'pregnancy_t1',     label: 'Embarazo — 1.er trimestre' },
-  { value: 'pregnancy_t2',     label: 'Embarazo — 2.º trimestre' },
-  { value: 'pregnancy_t3',     label: 'Embarazo — 3.er trimestre' },
-  { value: 'lactation_0_6m',   label: 'Lactancia (0-6 meses)' },
-  { value: 'lactation_6_12m',  label: 'Lactancia (6-12 meses)' },
+  { value: 'standard',        label: 'Estándar' },
+  { value: 'pregnancy_t1',    label: 'Embarazo — 1er trimestre · +85 kcal' },
+  { value: 'pregnancy_t2',    label: 'Embarazo — 2do trimestre · +285 kcal' },
+  { value: 'pregnancy_t3',    label: 'Embarazo — 3er trimestre · +475 kcal' },
+  { value: 'lactation_0_6m',  label: 'Lactancia 0-6 meses · +500 kcal' },
+  { value: 'lactation_6_12m', label: 'Lactancia 6-12 meses · +400 kcal' },
 ];
 
-interface Props {
-  patient?: Patient;
-}
-
-export default function PatientForm({ patient }: Props) {
+export default function PatientForm({ patient }: { patient?: Patient }) {
   const router = useRouter();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [physState, setPhysState] = useState<PhysiologicalState>(
-    patient?.physiological_state ?? 'standard',
-  );
-  const [comorbidities, setComorbidities] = useState<string[]>(
-    patient?.comorbidities ?? [],
-  );
-  const [isAthlete, setIsAthlete] = useState<boolean>(patient?.is_athlete ?? false);
-  const [birthDate, setBirthDate] = useState<string>(patient?.birth_date ?? '');
+  const [data, setData] = useState<Data>({
+    full_name: patient?.full_name,
+    document_id: patient?.document_id ?? undefined,
+    birth_date: patient?.birth_date ?? undefined,
+    sex: patient?.sex ?? undefined,
+    height_cm: patient?.height_cm ?? undefined,
+    weight_kg: patient?.weight_kg ?? undefined,
+    weight_pregest_kg: patient?.weight_pregest_kg ?? undefined,
+    physiological_state: patient?.physiological_state ?? 'standard',
+    residence_area: patient?.residence_area ?? undefined,
+    lifestyle: patient?.lifestyle ?? undefined,
+    is_athlete: patient?.is_athlete ?? false,
+    protein_factor_override: patient?.protein_factor_override ?? undefined,
+    comorbidities: patient?.comorbidities ?? [],
+    notes: patient?.notes ?? undefined,
+  });
 
-  const isPregnancy = physState.startsWith('pregnancy');
-  const ageYears = birthDate ? ageInYears(new Date(birthDate)) : null;
-  const isOlderAdult = ageYears != null && ageYears >= 60;
+  const set = (patch: Data) => setData((d) => ({ ...d, ...patch }));
+  const isPregnancy = data.physiological_state?.startsWith('pregnancy') ?? false;
+  const ageY = data.birth_date ? ageInYears(new Date(data.birth_date)) : null;
 
-  function toggleComorbidity(code: string) {
-    setComorbidities((prev) =>
-      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
-    );
-  }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError('');
 
-    const form = e.currentTarget;
-    const fd = new FormData(form);
-
-    const body: Record<string, unknown> = {
-      full_name:             fd.get('full_name'),
-      document_id:           fd.get('document_id') || null,
-      birth_date:            fd.get('birth_date') || null,
-      sex:                   fd.get('sex') || null,
-      height_cm:             fd.get('height_cm') ? Number(fd.get('height_cm')) : null,
-      weight_kg:             fd.get('weight_kg') ? Number(fd.get('weight_kg')) : null,
-      weight_pregest_kg:     fd.get('weight_pregest_kg') ? Number(fd.get('weight_pregest_kg')) : null,
-      physiological_state:   physState,
-      residence_area:        fd.get('residence_area') || null,
-      lifestyle:             fd.get('lifestyle') || null,
-      is_athlete:            isAthlete,
-      protein_factor_override: fd.get('protein_factor_override')
-        ? Number(fd.get('protein_factor_override'))
-        : null,
-      comorbidities:         comorbidities,
-      notes:                 fd.get('notes') || null,
+    const body = {
+      full_name: data.full_name,
+      document_id: data.document_id || null,
+      birth_date: data.birth_date || null,
+      sex: data.sex || null,
+      height_cm: data.height_cm ?? null,
+      weight_kg: data.weight_kg ?? null,
+      weight_pregest_kg: data.weight_pregest_kg ?? null,
+      physiological_state: data.physiological_state ?? 'standard',
+      residence_area: data.residence_area || null,
+      lifestyle: data.lifestyle || null,
+      is_athlete: data.is_athlete ?? false,
+      protein_factor_override: data.protein_factor_override ?? null,
+      comorbidities: data.comorbidities ?? [],
+      notes: data.notes || null,
     };
 
-    const url    = patient ? `/api/patients/${patient.id}` : '/api/patients';
+    const url = patient ? `/api/patients/${patient.id}` : '/api/patients';
     const method = patient ? 'PATCH' : 'POST';
-
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -79,230 +92,180 @@ export default function PatientForm({ patient }: Props) {
     });
 
     if (!res.ok) {
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       setError(json.error ?? 'Error al guardar');
       setSaving(false);
       return;
     }
-
-    const data = await res.json();
-    router.push(`/patients/${data.id}`);
+    const saved = await res.json();
+    router.push(`/patients/${saved.id}`);
     router.refresh();
   }
 
+  function toggleComorbidity(code: string) {
+    const cur = data.comorbidities ?? [];
+    set({ comorbidities: cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code] });
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      {/* ── Identificación ── */}
-      <Section title="Identificación">
-        <Field label="Nombre completo *" name="full_name" required defaultValue={patient?.full_name} />
-        <Field label="DNI" name="document_id" defaultValue={patient?.document_id ?? ''} />
-        <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
-            Fecha de nacimiento
-          </label>
+    <form onSubmit={handleSubmit} className="max-w-2xl space-y-5">
+      <FormCard title="Identificación">
+        <Field label="Nombre completo" required>
           <input
-            name="birth_date"
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            className="w-full px-3 py-2 rounded border text-sm focus:outline-none"
-            style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
+            type="text" required value={data.full_name ?? ''}
+            onChange={(e) => set({ full_name: e.target.value })}
+            className={inputClass}
+            style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink)' }}
           />
-        </div>
+        </Field>
+        <FormRow cols={2}>
+          <Field label="DNI">
+            <input
+              type="text" maxLength={8} value={data.document_id ?? ''}
+              onChange={(e) => set({ document_id: e.target.value })}
+              className={inputClass}
+              style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink)' }}
+            />
+          </Field>
+          <Field label="Fecha de nacimiento" required hint="dd/mm/aaaa">
+            <input
+              type="date" required value={data.birth_date ?? ''}
+              onChange={(e) => set({ birth_date: e.target.value })}
+              className={inputClass}
+              style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink)' }}
+            />
+          </Field>
+        </FormRow>
+        <Field label="Sexo" required>
+          <div className="flex gap-2">
+            <RadioPill checked={data.sex === 'F'} onClick={() => set({ sex: 'F' })} label="Femenino" />
+            <RadioPill checked={data.sex === 'M'} onClick={() => set({ sex: 'M' })} label="Masculino" />
+          </div>
+        </Field>
+      </FormCard>
 
-        <Select
-          label="Sexo"
-          name="sex"
-          defaultValue={patient?.sex ?? ''}
-          options={[
-            { value: '', label: '— No especificado —' },
-            { value: 'M', label: 'Masculino' },
-            { value: 'F', label: 'Femenino' },
-          ]}
-        />
-      </Section>
-
-      {/* ── Antropometría ── */}
-      <Section title="Antropometría">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Talla (cm)" name="height_cm" type="number" step="0.1"
-            defaultValue={patient?.height_cm?.toString() ?? ''} />
-          <Field label="Peso actual (kg)" name="weight_kg" type="number" step="0.1"
-            defaultValue={patient?.weight_kg?.toString() ?? ''} />
-        </div>
-
-        <Select
-          label="Estado fisiológico"
-          name="physiological_state"
-          value={physState}
-          onChange={(v) => setPhysState(v as PhysiologicalState)}
-          options={PHYSIO_OPTIONS}
-        />
-
+      <FormCard title="Antropometría">
+        <FormRow cols={2}>
+          <Field label="Talla" suffix="cm">
+            <NumberInput value={data.height_cm} onChange={(v) => set({ height_cm: v })}
+              min={30} max={250} step={1} />
+          </Field>
+          <Field label="Peso actual" suffix="kg">
+            <NumberInput value={data.weight_kg} onChange={(v) => set({ weight_kg: v })}
+              min={2} max={300} step={0.1} />
+          </Field>
+        </FormRow>
+        <Field label="Estado fisiológico">
+          <select
+            value={data.physiological_state ?? 'standard'}
+            onChange={(e) => set({ physiological_state: e.target.value as PhysiologicalState })}
+            className={inputClass}
+            style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink)' }}
+          >
+            {PHYSIO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </Field>
         {isPregnancy && (
-          <Field label="Peso pregestacional (kg)" name="weight_pregest_kg" type="number" step="0.1"
-            defaultValue={patient?.weight_pregest_kg?.toString() ?? ''}
-          />
+          <Field label="Peso pregestacional" suffix="kg" required
+            hint="Se usa en cálculos en lugar del peso actual">
+            <NumberInput value={data.weight_pregest_kg} onChange={(v) => set({ weight_pregest_kg: v })}
+              min={2} max={300} step={0.1} />
+          </Field>
         )}
-      </Section>
-
-      {/* ── Actividad física ── */}
-      <Section title="Actividad física">
-        <Select
-          label="Área de residencia"
-          name="residence_area"
-          defaultValue={patient?.residence_area ?? ''}
-          options={[
-            { value: '', label: '— No especificado —' },
-            { value: 'urbana', label: 'Urbana' },
-            { value: 'rural', label: 'Rural' },
-          ]}
+        <LiveAnthropometryBlock
+          birthDate={data.birth_date} heightCm={data.height_cm}
+          weightKg={data.weight_kg} weightPregestKg={data.weight_pregest_kg}
+          isPregnancy={isPregnancy}
         />
-        <Select
-          label="Nivel de actividad"
-          name="lifestyle"
-          defaultValue={patient?.lifestyle ?? ''}
-          options={[
-            { value: '', label: '— No especificado —' },
-            { value: 'ligero', label: 'Ligero (sedentario / trabajo de oficina)' },
-            { value: 'no_ligero', label: 'No ligero (trabajo físico / activo)' },
-          ]}
-        />
-        <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--ink)' }}>
-          <input
-            type="checkbox"
-            checked={isAthlete}
-            onChange={(e) => setIsAthlete(e.target.checked)}
-            className="rounded"
-          />
-          Deportista / actividad física intensa
-        </label>
-        {isAthlete && (
-          <Field
-            label="Factor proteico (g/kg peso saludable)"
-            name="protein_factor_override"
-            type="number"
-            step="0.1"
-            defaultValue={patient?.protein_factor_override?.toString() ?? ''}
-          />
-        )}
-      </Section>
+      </FormCard>
 
-      {/* ── Perfil clínico ── */}
-      <Section title="Perfil clínico (puede marcar varios)">
-        <div className="grid grid-cols-1 gap-1.5">
-          {SELECTABLE_COMORBIDITIES.map((c) => (
-            <label
-              key={c.code}
-              className="flex items-center gap-2 text-sm cursor-pointer"
-              style={{ color: 'var(--ink)' }}
+      <FormCard title="Actividad física">
+        <FormRow cols={2}>
+          <Field label="Área de residencia">
+            <div className="flex gap-2">
+              <RadioPill checked={data.residence_area === 'urbana'}
+                onClick={() => set({ residence_area: 'urbana' })} label="Urbana" />
+              <RadioPill checked={data.residence_area === 'rural'}
+                onClick={() => set({ residence_area: 'rural' })} label="Rural" />
+            </div>
+          </Field>
+          <Field label="Nivel de actividad">
+            <select
+              value={data.lifestyle ?? ''}
+              onChange={(e) => set({ lifestyle: (e.target.value || undefined) as Data['lifestyle'] })}
+              className={inputClass}
+              style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink)' }}
             >
-              <input
-                type="checkbox"
-                checked={comorbidities.includes(c.code)}
-                onChange={() => toggleComorbidity(c.code)}
-                className="rounded"
-              />
-              {c.label}
-            </label>
+              <option value="">Seleccionar...</option>
+              <option value="ligero">Ligero (sedentario / oficina)</option>
+              <option value="no_ligero">No ligero (trabajo físico / activo)</option>
+            </select>
+          </Field>
+        </FormRow>
+        <CheckboxRow checked={data.is_athlete ?? false}
+          onChange={(c) => set({ is_athlete: c })}
+          label="Deportista / actividad física intensa" />
+        {data.is_athlete && (
+          <Field label="Factor proteico" suffix="g/kg peso saludable"
+            hint="Deportistas: 1.2 a 2.0 g/kg. Por defecto se aplica 1.4 si lo dejas en blanco.">
+            <NumberInput value={data.protein_factor_override}
+              onChange={(v) => set({ protein_factor_override: v })}
+              min={0.6} max={3.0} step={0.1} placeholder="1.4" />
+          </Field>
+        )}
+      </FormCard>
+
+      <FormCard title="Perfil clínico" subtitle="Puede marcar varios">
+        <div className="space-y-2">
+          {SELECTABLE_COMORBIDITIES.map((opt) => (
+            <CheckboxRow
+              key={opt.code}
+              checked={data.comorbidities?.includes(opt.code) ?? false}
+              onChange={() => toggleComorbidity(opt.code)}
+              label={opt.label}
+            />
           ))}
         </div>
+      </FormCard>
 
-        {isOlderAdult && (
-          <div
-            className="rounded border px-3 py-2 text-xs"
-            style={{ borderColor: 'var(--rule)', background: 'var(--paper)', color: 'var(--ink-soft)' }}
-          >
-            Adulto mayor detectado automáticamente (≥60 años). Se aplican overrides:
-            proteína 1.2 g/kg, calcio 1200 mg, vitamina D 20 µg.
-          </div>
-        )}
+      {ageY != null && ageY >= 60 && (
+        <InfoCard variant="info">
+          <strong>Adulto mayor detectado automáticamente</strong> (≥60 años).
+          Se aplicarán overrides clínicos: proteína 1.2 g/kg, calcio ≥1200 mg,
+          vitamina D ≥20 µg, IMC saludable de referencia 25.5.
+        </InfoCard>
+      )}
 
-        <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
-            Notas clínicas
-          </label>
-          <textarea
-            name="notes"
-            rows={3}
-            defaultValue={patient?.notes ?? ''}
-            className="w-full px-3 py-2 rounded border text-sm resize-none"
-            style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
-          />
-        </div>
-      </Section>
+      <FormCard title="Notas clínicas">
+        <textarea
+          value={data.notes ?? ''}
+          onChange={(e) => set({ notes: e.target.value })}
+          className={inputClass + ' min-h-[100px] resize-none'}
+          style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink)' }}
+          placeholder="Información adicional, alergias, observaciones..."
+        />
+      </FormCard>
 
       {error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>}
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="px-5 py-2 rounded text-sm font-medium disabled:opacity-50"
-        style={{ background: 'var(--accent)', color: 'var(--paper)' }}
-      >
-        {saving ? 'Guardando...' : patient ? 'Guardar cambios' : 'Crear paciente'}
-      </button>
+      <div className="flex justify-end gap-2 pt-2">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className={btnSecondary}
+          style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          className={btnPrimary + ' disabled:opacity-50'}
+          style={{ background: 'var(--accent)', color: 'var(--paper)' }}
+        >
+          {saving ? 'Guardando...' : patient ? 'Guardar cambios' : 'Crear paciente'}
+        </button>
+      </div>
     </form>
-  );
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <fieldset
-      className="rounded-lg border p-4 space-y-3"
-      style={{ borderColor: 'var(--rule)', background: 'var(--paper-warm)' }}
-    >
-      <legend className="text-xs font-semibold uppercase tracking-wide px-1" style={{ color: 'var(--ink-soft)' }}>
-        {title}
-      </legend>
-      {children}
-    </fieldset>
-  );
-}
-
-function Field({
-  label, name, type = 'text', required, defaultValue, step,
-}: {
-  label: string; name: string; type?: string;
-  required?: boolean; defaultValue?: string; step?: string;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>{label}</label>
-      <input
-        name={name} type={type} required={required} defaultValue={defaultValue} step={step}
-        className="w-full px-3 py-2 rounded border text-sm focus:outline-none"
-        style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
-      />
-    </div>
-  );
-}
-
-function Select({
-  label, name, defaultValue, value, onChange, options,
-}: {
-  label: string; name: string;
-  defaultValue?: string; value?: string;
-  onChange?: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  const controlled = value !== undefined;
-  return (
-    <div>
-      <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>{label}</label>
-      <select
-        name={name}
-        {...(controlled
-          ? { value, onChange: (e) => onChange?.(e.target.value) }
-          : { defaultValue }
-        )}
-        className="w-full px-3 py-2 rounded border text-sm"
-        style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
-      >
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
   );
 }

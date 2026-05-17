@@ -6,6 +6,7 @@ import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
 import { MEAL_LABELS, MEAL_SLOTS, calculateTotals } from '@/lib/nutrition';
 import type { ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
+import { BarChart3, X } from 'lucide-react';
 import { ageInYears } from '@/lib/calculations/age';
 import { calculateAbsorbableIron, shouldShowAbsorbableIron } from '@/lib/calculations/ironBioavailability';
 import FoodSearch from './FoodSearch';
@@ -24,6 +25,7 @@ interface Props {
 export default function PlanBuilder({ plan, patient, initialItems, targets, vct }: Props) {
   const [items, setItems] = useState<(MealPlanItem & { foods: Food })[]>(initialItems);
   const [activeMeal, setActiveMeal] = useState<string>('desayuno');
+  const [showTotals, setShowTotals] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [planName, setPlanName] = useState(plan.name);
   const [planDate, setPlanDate] = useState(plan.plan_date);
@@ -89,10 +91,19 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
     setSaving(false);
   }
 
+  const panels = (
+    <div className="flex flex-col gap-4">
+      <TotalsPanel totals={totals} targets={targets} vct={vct} iron={iron} />
+      {vct && ageYears != null && (
+        <MacroPanel vctKcal={vct.vct} ageYears={ageYears} weightKg={vct.weightUsed} />
+      )}
+    </div>
+  );
+
   return (
-    <div className="flex gap-6 h-full min-h-0">
+    <div className="grid gap-6 lg:grid-cols-[1fr_320px] min-h-0">
       {/* Left: plan builder */}
-      <div className="flex-1 min-w-0 flex flex-col gap-4">
+      <div className="min-w-0 flex flex-col gap-4">
         {/* Header */}
         <div className="flex items-center gap-3 flex-wrap">
           <Link href={`/patients/${patient.id}`} className="text-xs hover:underline shrink-0" style={{ color: 'var(--ink-soft)' }}>
@@ -165,17 +176,44 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
         />
       </div>
 
-      {/* Right: totals + macros */}
-      <div className="w-72 shrink-0 flex flex-col gap-4">
-        <TotalsPanel totals={totals} targets={targets} vct={vct} iron={iron} />
-        {vct && ageYears != null && (
-          <MacroPanel
-            vctKcal={vct.vct}
-            ageYears={ageYears}
-            weightKg={vct.weightUsed}
-          />
-        )}
-      </div>
+      {/* Right: totals + macros (desktop) */}
+      <aside className="hidden lg:block">
+        <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+          {panels}
+        </div>
+      </aside>
+
+      {/* Mobile FAB + drawer */}
+      <button
+        onClick={() => setShowTotals(true)}
+        className="lg:hidden fixed bottom-4 right-4 z-40 rounded-full px-4 py-3 flex items-center gap-2 text-sm font-medium"
+        style={{ background: 'var(--accent)', color: 'var(--paper)', boxShadow: 'var(--shadow-card-hover)' }}
+      >
+        <BarChart3 size={16} />
+        {Math.round(totals.energia_kcal ?? 0)} kcal
+      </button>
+
+      {showTotals && (
+        <div
+          className="lg:hidden fixed inset-0 z-50"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={() => setShowTotals(false)}
+        >
+          <div
+            className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-2xl overflow-hidden flex flex-col"
+            style={{ background: 'var(--paper)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="flex justify-between items-center p-4 border-b" style={{ borderColor: 'var(--rule)' }}>
+              <h3 className="font-display font-medium" style={{ color: 'var(--ink)' }}>Totales del día</h3>
+              <button onClick={() => setShowTotals(false)} style={{ color: 'var(--ink-soft)' }}>
+                <X size={18} />
+              </button>
+            </header>
+            <div className="flex-1 overflow-y-auto p-4">{panels}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
