@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/ui/Sidebar';
 
@@ -7,7 +8,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: nutritionist } = await supabase
+  const admin = createAdminClient();
+  const { data: nutritionist } = await admin
     .from('nutritionists')
     .select('full_name, role, clinic_id, clinics(name)')
     .eq('id', user.id)

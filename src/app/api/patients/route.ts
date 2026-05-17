@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -32,7 +33,9 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: nutritionist } = await supabase
+  // Use admin client to bypass RLS for internal lookup
+  const admin = createAdminClient();
+  const { data: nutritionist } = await admin
     .from('nutritionists')
     .select('clinic_id')
     .eq('id', user.id)

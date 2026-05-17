@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound } from 'next/navigation';
 import PlanBuilder from '@/components/plan/PlanBuilder';
 import type { Food, MealPlan, MealPlanItem, Patient, NutrientProfile } from '@/lib/types';
@@ -8,6 +9,7 @@ type Ctx = { params: Promise<{ id: string; planId: string }> };
 export default async function PlanPage({ params }: Ctx) {
   const { id: patientId, planId } = await params;
   const supabase = await createClient();
+  const admin = createAdminClient();
 
   const [
     { data: plan },
@@ -20,7 +22,7 @@ export default async function PlanPage({ params }: Ctx) {
       .eq('id', planId)
       .single(),
     supabase.from('patients').select('*').eq('id', patientId).single(),
-    supabase.from('nutrient_profiles').select('*').order('is_system', { ascending: false }),
+    admin.from('nutrient_profiles').select('*').order('is_system', { ascending: false }),
   ]);
 
   if (!plan || !patient) notFound();
