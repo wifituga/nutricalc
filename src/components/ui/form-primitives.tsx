@@ -2,7 +2,7 @@
 
 import { ReactNode } from 'react';
 import { ageInYears } from '@/lib/calculations/age';
-import { imcSaludable, pesoSaludable } from '@/lib/calculations/healthyWeight';
+import { imcSaludable, pesoSaludable, classifyIMC } from '@/lib/calculations/healthyWeight';
 
 export function FormCard({ title, subtitle, children }: {
   title: string;
@@ -155,13 +155,6 @@ export function InfoCard({ variant = 'info', children }: {
   );
 }
 
-export function classifyIMC(imc: number): string {
-  if (imc < 18.5) return 'bajo peso';
-  if (imc < 25) return 'normal';
-  if (imc < 30) return 'sobrepeso';
-  return 'obesidad';
-}
-
 export function LiveAnthropometryBlock({
   birthDate, heightCm, weightKg, weightPregestKg, isPregnancy,
 }: {
@@ -213,9 +206,4 @@ function Metric({ label, value, hint }: { label: string; value: string; hint: st
   );
 }
 
-export const btnPrimary =
-  'px-5 py-2.5 rounded-md text-sm font-medium transition-colors';
-export const btnSecondary =
-  'px-5 py-2.5 border rounded-md text-sm transition-colors';
-export const inputClass =
-  'w-full px-3 py-2 rounded-md border text-sm focus:outline-none';
+export { inputClass, btnPrimary, btnSecondary } from './form-styles';

@@ -2,6 +2,13 @@ export function imcSaludable(ageYears: number): 22 | 25.5 {
   return ageYears >= 60 ? 25.5 : 22;
 }
 
+export function classifyIMC(imc: number): string {
+  if (imc < 18.5) return 'bajo peso';
+  if (imc < 25) return 'normal';
+  if (imc < 30) return 'sobrepeso';
+  return 'obesidad';
+}
+
 export function pesoSaludable(heightM: number, ageYears: number): number {
   return imcSaludable(ageYears) * heightM * heightM;
 }
