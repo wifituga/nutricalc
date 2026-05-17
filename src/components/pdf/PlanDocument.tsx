@@ -75,6 +75,15 @@ const styles = StyleSheet.create({
     paddingVertical: 1.5,
   },
   macroValue: { fontSize: 9, fontFamily: 'Helvetica', textAlign: 'right', width: 180 },
+  disclaimerBanner: {
+    marginVertical: 8,
+    padding: 8,
+    backgroundColor: '#efe9dd',
+    borderRadius: 4,
+    borderLeftWidth: 2,
+    borderLeftColor: '#6b4423',
+  },
+  disclaimerBannerText: { fontSize: 8, color: '#5c574e', fontStyle: 'italic' },
   totalsBox: {
     marginTop: 16,
     borderWidth: 1,
@@ -148,6 +157,14 @@ export function PlanDocument({
           </View>
         </View>
 
+        <View style={styles.disclaimerBanner}>
+          <Text style={styles.disclaimerBannerText}>
+            Esta herramienta provee cálculos basados en TPCA 2023, FAO/OMS 2004 e
+            IOM/NASEM DRIs. Los valores son referenciales y deben ser validados
+            por un nutricionista colegiado antes de uso clínico.
+          </Text>
+        </View>
+
         {/* Meals */}
         {MEAL_SLOTS.map((slot) => {
           const slotItems = items.filter((i) => i.meal === slot);
@@ -179,9 +196,9 @@ export function PlanDocument({
           </Text>
           {PRIMARY_NUTRIENTS.map((key) => {
             const info = NUTRIENT_LABELS[key];
-            const value = totals[key];
+            const value = totals[key]?.value ?? null;
             const target = targets[key];
-            const level = value != null && target ? getTargetLevel(value, target) : 'neutral';
+            const level = value != null && target ? getTargetLevel(value, target, key) : null;
             const valueStr = value != null
               ? `${value.toLocaleString('es-PE', { maximumFractionDigits: 1 })} ${info.unit}`
               : '—';
@@ -192,9 +209,9 @@ export function PlanDocument({
                   ? ` / min ${target.min}`
                   : target.max != null ? ` / max ${target.max}` : ''
               : '';
-            const colorStyle = level === 'alert' ? styles.alertDanger
-              : level === 'warn' ? styles.alertWarn
-              : level === 'ok' ? styles.alertOk
+            const colorStyle = level === 'exceeded' ? styles.alertDanger
+              : level === 'near_ul' || level === 'low' ? styles.alertWarn
+              : level === 'ok' || level === 'high_natural' ? styles.alertOk
               : undefined;
 
             return (

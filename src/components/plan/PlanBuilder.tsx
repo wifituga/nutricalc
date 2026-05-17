@@ -7,6 +7,7 @@ import { MEAL_LABELS, MEAL_SLOTS, calculateTotals } from '@/lib/nutrition';
 import type { ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
 import { BarChart3, X, Eye, ExternalLink } from 'lucide-react';
+import { ClinicalDisclaimer } from '@/components/ui/ClinicalDisclaimer';
 import { ageInYears } from '@/lib/calculations/age';
 import { calculateAbsorbableIron, shouldShowAbsorbableIron } from '@/lib/calculations/ironBioavailability';
 import FoodSearch from './FoodSearch';
@@ -185,6 +186,8 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
           onUpdateItem={updateItem}
           onRemove={removeItem}
         />
+
+        <ClinicalDisclaimer variant="inline" />
       </div>
 
       {/* Right: totals + macros (desktop) */}
@@ -201,7 +204,7 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
         style={{ background: 'var(--accent)', color: 'var(--paper)', boxShadow: 'var(--shadow-card-hover)' }}
       >
         <BarChart3 size={16} />
-        {Math.round(totals.energia_kcal ?? 0)} kcal
+        {Math.round(totals.energia_kcal?.value ?? 0)} kcal
       </button>
 
       {showTotals && (

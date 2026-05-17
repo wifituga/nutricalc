@@ -11,6 +11,7 @@ import { classifyIMC } from '@/lib/calculations/healthyWeight';
 import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
 import { COMORBIDITY_LABELS } from '@/lib/calculations/clinicalOverrides';
 import RequirementsDetail from '@/components/plan/RequirementsDetail';
+import { ClinicalDisclaimer } from '@/components/ui/ClinicalDisclaimer';
 
 const PHYSIO_LABELS: Record<string, string> = {
   pregnancy_t1: 'Embarazo T1', pregnancy_t2: 'Embarazo T2', pregnancy_t3: 'Embarazo T3',
@@ -76,6 +77,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         </div>
       </header>
 
+      <ClinicalDisclaimer variant="banner" />
+
       {/* CTA crear plan */}
       {vct && (
         <section className="rounded-lg p-5 flex items-center justify-between"
@@ -117,7 +120,9 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <DataCell label="Peso pregest." value={`${patient.weight_pregest_kg} kg`} />
           )}
           {imc != null && (
-            <DataCell label="IMC actual" value={imc.toFixed(1)} hint={classifyIMC(imc)} />
+            <DataCell label="IMC actual" value={imc.toFixed(1)}
+              hint={classifyIMC(imc, age ?? 30).label}
+              hintColor={`var(--${classifyIMC(imc, age ?? 30).color})`} />
           )}
           {vct && (
             <DataCell label="Peso usado" value={`${vct.weightUsed.toFixed(1)} kg`}
@@ -159,6 +164,16 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             de actividad para calcular el VCT.
           </p>
         </FormCard>
+      )}
+
+      {vct && (
+        <Link
+          href={`/patients/${id}/calculation`}
+          className="inline-flex items-center gap-1 text-xs hover:underline"
+          style={{ color: 'var(--ink-soft)' }}
+        >
+          Ver cálculo paso a paso →
+        </Link>
       )}
 
       <RequirementsDetail merged={merged} comorbidities={comorbidities} />
@@ -203,7 +218,9 @@ function Sep() {
   return <span style={{ color: 'var(--rule)' }}>·</span>;
 }
 
-function DataCell({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function DataCell({ label, value, hint, hintColor }: {
+  label: string; value: string; hint?: string; hintColor?: string;
+}) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--ink-soft)' }}>
@@ -211,7 +228,7 @@ function DataCell({ label, value, hint }: { label: string; value: string; hint?:
       </div>
       <div className="font-mono text-sm" style={{ color: 'var(--ink)' }}>
         {value}
-        {hint && <span className="text-xs ml-1.5" style={{ color: 'var(--ink-soft)' }}>{hint}</span>}
+        {hint && <span className="text-xs ml-1.5" style={{ color: hintColor ?? 'var(--ink-soft)' }}>{hint}</span>}
       </div>
     </div>
   );

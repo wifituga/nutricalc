@@ -2,12 +2,27 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { ageInYears } from '@/lib/calculations/age';
+
+const birthDateField = z.string().refine(
+  (s) => {
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return false;
+    const now = new Date();
+    const oneTwentyAgo = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate());
+    return d >= oneTwentyAgo && d <= now;
+  },
+  { message: 'Fecha de nacimiento fuera de rango plausible (1905–presente)' },
+).refine(
+  (s) => ageInYears(new Date(s)) >= 1,
+  { message: 'Pacientes menores de 1 año no soportados (lactantes).' },
+);
 
 const patientSchema = z.object({
   full_name:              z.string().min(1, 'Nombre requerido'),
   document_id:            z.string().nullish(),
-  birth_date:             z.string().nullish(),
-  sex:                    z.enum(['M', 'F']).nullish(),
+  birth_date:             birthDateField,
+  sex:                    z.enum(['M', 'F'], { message: 'Sexo obligatorio (M o F)' }),
   height_cm:              z.number().positive().nullish(),
   weight_kg:              z.number().positive().nullish(),
   weight_pregest_kg:      z.number().positive().nullish(),

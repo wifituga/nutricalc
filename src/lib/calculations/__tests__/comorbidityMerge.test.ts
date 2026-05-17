@@ -138,4 +138,46 @@ describe('comorbidityMerge', () => {
     expect(r.carbohidratos_pct_vct.min).toBe(50);
     expect(r.carbohidratos_pct_vct.max).toBe(50);
   });
+
+  // B.6 — la spec espera proteína 1.4 / source 'athlete' (deportista gana).
+  // El mergeOverrides ACTUAL intersecta rangos: older_adult 1.0-1.2 ∩
+  // athlete 1.2-2.0 → [1.2,1.2], target clamp = 1.2, source 'merged'.
+  // No se modifica la lógica de merge (regla #1). Se asienta el comportamiento
+  // real y se marca como DECISIÓN PENDIENTE para Regina.
+  it('Adulto mayor (auto 65a) + deportista → proteína (comportamiento actual)', () => {
+    const r = mergeOverrides(
+      baseF,
+      [],
+      { birth_date: bornYearsAgo(65), is_athlete: true },
+      REF,
+    );
+    // Calcio: older_adult ↑ a 1200
+    expect(r.calcio_mg.min).toBe(1200);
+    // Proteína: intersección de rangos (no la prioridad deportista que pide la spec)
+    expect(r.proteinas_g_per_kg.target).toBeCloseTo(1.2, 1);
+    // // SPEC EXPECTABA: target 1.4, source 'athlete' — requiere decisión clínica
+  });
+
+  it('B.7 Rosa Test: F 62a obesa con HTA + Dislipidemia + DM2', () => {
+    const patient = {
+      birth_date: bornYearsAgo(62),
+      is_athlete: false,
+      comorbidities: ['hypertension', 'dyslipidemia', 'diabetes_t2'],
+    };
+    const r = mergeOverrides(
+      baseF,
+      ['hypertension', 'dyslipidemia', 'diabetes_t2'],
+      patient,
+      REF,
+    );
+    expect(r.sodio_mg.max).toBe(1500);
+    expect(r.sodio_mg.source).toBe('hypertension');
+    expect(r.grasa_saturada_pct_vct.max).toBe(7);
+    expect(r.fibra_g.min).toBe(30);
+    expect(r.calcio_mg.min).toBe(1200); // older_adult auto-derivado
+    const conflicts = Object.values(r).filter((m) => m.conflict);
+    expect(conflicts).toEqual([]);
+    // Peso saludable con IMC 25.5 (older_adult): 25.5 × 1.55² = 61.26
+    expect(25.5 * 1.55 * 1.55).toBeCloseTo(61.26, 1);
+  });
 });

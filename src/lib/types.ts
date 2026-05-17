@@ -138,4 +138,9 @@ export interface NutrientProfile {
   created_at: string;
 }
 
-export type NutrientTotals = Partial<FoodNutrients>;
+export type NutrientTotal = {
+  value: number;
+  items_with_data: number;
+  items_with_null: number;
+};
+export type NutrientTotals = Partial<Record<keyof FoodNutrients, NutrientTotal>>;

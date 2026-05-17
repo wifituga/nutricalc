@@ -1,7 +1,16 @@
 import { NUTRIENT_LABELS } from '@/lib/nutrition';
-import type { AlertLevel, FoodNutrients } from '@/lib/types';
+import type { FoodNutrients } from '@/lib/types';
 import type { DRIValue } from './driLookup';
 import type { MergedTargets } from './comorbidityMerge';
+
+export type AlertLevel = 'low' | 'ok' | 'high_natural' | 'near_ul' | 'exceeded';
+
+export type AlertConfig = {
+  level: AlertLevel;
+  label: string;
+  color: string;
+  message: string;
+};
 
 // Override-namespace keys that map 1:1 onto TPCA/food nutrient keys
 const OVERRIDE_TO_FOOD: (keyof FoodNutrients)[] = [
@@ -127,34 +136,87 @@ export function applyMergedOverrides(
   return out;
 }
 
+// REVIEW_WITH_REGINA: estos multiplicadores son convención general
+// (0.8/1.2/1.5). Ajustar si la práctica clínica peruana sugiere otros.
+const THRESHOLDS = {
+  low_factor: 0.8,
+  high_factor: 1.2,
+  ul_factor: 1.5,
+} as const;
+
+const STRICT_UL_NUTRIENTS = new Set([
+  'sodio_mg',
+  'grasa_saturada_pct_vct',
+  'grasa_trans_g',
+  'colesterol_mg',
+]);
+
+type LevelTarget = { target?: number; min?: number; max?: number };
+
 export function getTargetLevel(
   value: number | null | undefined,
-  t: ResolvedTarget,
+  target: LevelTarget | undefined,
+  nutrientKey: string,
 ): AlertLevel {
-  if (value == null) return 'neutral';
+  if (value == null || target == null) return 'ok';
 
-  // Exceeding the UL is always the most severe signal
-  if (t.max != null && value > t.max) return 'alert';
+  const lowThreshold = target.target != null
+    ? target.target * THRESHOLDS.low_factor
+    : target.min;
 
-  if (t.target != null) {
-    const r = value / t.target;
-    if (r < 0.6 || r > 1.4) return 'alert';
-    if (r < 0.85 || r > 1.15) return 'warn';
+  if (lowThreshold != null && value < lowThreshold) return 'low';
+
+  if (target.max == null) return 'ok';
+
+  const ul = target.max;
+
+  if (STRICT_UL_NUTRIENTS.has(nutrientKey)) {
+    if (value > ul) return 'exceeded';
+    if (value > ul * 0.9) return 'near_ul';
     return 'ok';
   }
 
-  if (t.min != null) {
-    const r = value / t.min;
-    if (r < 0.6) return 'alert';
-    if (r < 0.85) return 'warn';
-    if (t.max != null && value > 0.85 * t.max) return 'warn';
-    return 'ok';
+  if (value > ul * THRESHOLDS.ul_factor) return 'exceeded';
+  if (value > ul) return 'near_ul';
+  if (target.target != null && value > target.target * THRESHOLDS.high_factor) {
+    return 'high_natural';
   }
+  return 'ok';
+}
 
-  if (t.max != null) {
-    if (value > 0.85 * t.max) return 'warn';
-    return 'ok';
+export function getAlertConfig(level: AlertLevel): AlertConfig {
+  switch (level) {
+    case 'low':
+      return { level, label: 'Bajo', color: 'var(--warn)',
+        message: 'Bajo aporte — considerar agregar fuentes de este nutriente.' };
+    case 'ok':
+      return { level, label: 'OK', color: 'var(--ok)', message: 'Adecuado' };
+    case 'high_natural':
+      return { level, label: 'Alto', color: 'var(--ok)',
+        message: 'Adecuado · alto aporte natural. Puede ser deseable según el caso clínico.' };
+    case 'near_ul':
+      return { level, label: 'Alerta', color: 'var(--warn)',
+        message: 'Cercano al límite superior. Revisar si este aporte es habitual.' };
+    case 'exceeded':
+      return { level, label: 'Excedido', color: 'var(--danger)',
+        message: 'Excedido · revisar alimentos del plan.' };
   }
+}
 
-  return 'neutral';
+export type PlanState =
+  | 'empty' | 'building' | 'undernourished' | 'adequate' | 'overfed' | 'excessive';
+
+export function classifyPlanState(currentKcal: number, vctTarget: number): {
+  state: PlanState; pct: number; message: string; color: string;
+} {
+  const pct = vctTarget > 0 ? (currentKcal / vctTarget) * 100 : 0;
+
+  // REVIEW_WITH_REGINA: corte 70% para "subalimentación" es práctica común.
+  // Algunas guías usan 80%. Ajustar si Regina lo prefiere.
+  if (pct < 30) return { state: 'empty', pct, message: 'Plan vacío o muy incompleto', color: 'var(--ink-soft)' };
+  if (pct < 70) return { state: 'building', pct, message: 'Plan en construcción · faltan comidas', color: 'var(--warn)' };
+  if (pct < 90) return { state: 'undernourished', pct, message: 'Bajo el VCT objetivo', color: 'var(--warn)' };
+  if (pct <= 110) return { state: 'adequate', pct, message: 'Adecuado', color: 'var(--ok)' };
+  if (pct <= 130) return { state: 'overfed', pct, message: 'Sobre el VCT objetivo', color: 'var(--warn)' };
+  return { state: 'excessive', pct, message: 'Exceso significativo', color: 'var(--danger)' };
 }

@@ -1,4 +1,4 @@
-import type { FoodNutrients, MealPlanItem, Food, AlertLevel, NutrientLimit, NutrientTotals, HouseholdMeasure } from './types';
+import type { FoodNutrients, MealPlanItem, Food, AlertLevel, NutrientLimit, NutrientTotals, NutrientTotal, HouseholdMeasure } from './types';
 
 /**
  * Effective grams of an item: when a household measure is selected,
@@ -16,22 +16,29 @@ export function resolveGrams(
 }
 
 export function calculateTotals(items: MealPlanItem[], foods: Map<number, Food>): NutrientTotals {
-  const totals: Record<string, number> = {};
+  const keys = Object.keys(NUTRIENT_LABELS) as (keyof FoodNutrients)[];
+  const totals: Partial<Record<keyof FoodNutrients, NutrientTotal>> = {};
 
-  for (const item of items) {
-    const food = foods.get(item.food_id);
-    if (!food) continue;
-    const factor = item.grams / 100;
-    for (const [nutrient, value] of Object.entries(food.per_100g)) {
-      if (value != null) {
-        totals[nutrient] = (totals[nutrient] ?? 0) + (value as number) * factor;
+  for (const key of keys) {
+    let value = 0;
+    let withData = 0;
+    let withNull = 0;
+    for (const item of items) {
+      const food = foods.get(item.food_id);
+      if (!food) continue;
+      const v = food.per_100g[key];
+      if (v == null) {
+        withNull++;
+      } else {
+        value += v * (item.grams / 100);
+        withData++;
       }
     }
-  }
-
-  // Round to 2 decimal places
-  for (const key of Object.keys(totals)) {
-    totals[key] = Math.round(totals[key] * 100) / 100;
+    totals[key] = {
+      value: Math.round(value * 100) / 100,
+      items_with_data: withData,
+      items_with_null: withNull,
+    };
   }
 
   return totals as NutrientTotals;

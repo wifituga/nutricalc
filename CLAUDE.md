@@ -60,6 +60,12 @@ Ver `MIGRATION_PLAN.md` para el plan completo paso a paso.
 - [x] **Fase 2** — Pulido visual: form-primitives, PatientForm controlado+IMC vivo, página paciente con cards, FoodSearch teclado, responsive
 - [x] **Fase 3** — Modo paciente: share_token, ruta pública `/p/[token]`, PatientPlanView
 
+### Fix pre-Regina (post-UX, en main)
+- [x] **Grupo A** — semáforo 5 niveles, bloqueo <1a, sexo obligatorio (migr 010), disclaimer clínico (UI+PDF), panel "cálculo paso a paso"
+- [x] **Grupo B** — clasificación IMC con badge, indicador datos faltantes, validación macros 100%, estado del plan %VCT, validación fecha nac, tests B.6/B.7
+- [x] **Grupo C** — `docs/REGINA_DEMO_CHECKLIST.md`
+- ⚠ 2 inconsistencias de la spec marcadas para Regina (ver checklist preguntas 4 y 5)
+
 ## Estructura actual (será refactorizada en sprints)
 ```
 src/

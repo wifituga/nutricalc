@@ -173,6 +173,7 @@ export function LiveAnthropometryBlock({
   const imcSal = imcSaludable(ageY);
   const pesoSal = pesoSaludable(heightM, ageY);
   const weightToUse = imc > imcSal ? pesoSal : refWeight;
+  const cat = classifyIMC(imc, ageY);
 
   return (
     <div
@@ -181,7 +182,7 @@ export function LiveAnthropometryBlock({
     >
       <div className="grid grid-cols-3 gap-4">
         <Metric label={isPregnancy ? 'IMC pregestacional' : 'IMC actual'}
-          value={imc.toFixed(1)} hint={classifyIMC(imc)} />
+          value={imc.toFixed(1)} hint={cat.label} hintColor={`var(--${cat.color})`} />
         <Metric label="Peso saludable"
           value={`${pesoSal.toFixed(1)} kg`} hint={`IMC ${imcSal}`} />
         <Metric label="Peso usado en cálculos"
@@ -192,7 +193,9 @@ export function LiveAnthropometryBlock({
   );
 }
 
-function Metric({ label, value, hint }: { label: string; value: string; hint: string }) {
+function Metric({ label, value, hint, hintColor }: {
+  label: string; value: string; hint: string; hintColor?: string;
+}) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--ink-soft)' }}>
@@ -200,7 +203,7 @@ function Metric({ label, value, hint }: { label: string; value: string; hint: st
       </div>
       <div className="font-mono text-base" style={{ color: 'var(--ink)' }}>
         {value}
-        <span className="text-xs ml-1.5" style={{ color: 'var(--ink-soft)' }}>{hint}</span>
+        <span className="text-xs ml-1.5" style={{ color: hintColor ?? 'var(--ink-soft)' }}>{hint}</span>
       </div>
     </div>
   );

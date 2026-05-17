@@ -60,6 +60,12 @@ export default function PatientForm({ patient }: { patient?: Patient }) {
   const set = (patch: Data) => setData((d) => ({ ...d, ...patch }));
   const isPregnancy = data.physiological_state?.startsWith('pregnancy') ?? false;
   const ageY = data.birth_date ? ageInYears(new Date(data.birth_date)) : null;
+  const isInfant = ageY != null && ageY < 1;
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const minBirth = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate())
+    .toISOString().split('T')[0];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -130,6 +136,7 @@ export default function PatientForm({ patient }: { patient?: Patient }) {
           <Field label="Fecha de nacimiento" required hint="dd/mm/aaaa">
             <input
               type="date" required value={data.birth_date ?? ''}
+              min={minBirth} max={todayStr}
               onChange={(e) => set({ birth_date: e.target.value })}
               className={inputClass}
               style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink)' }}
@@ -141,7 +148,20 @@ export default function PatientForm({ patient }: { patient?: Patient }) {
             <RadioPill checked={data.sex === 'F'} onClick={() => set({ sex: 'F' })} label="Femenino" />
             <RadioPill checked={data.sex === 'M'} onClick={() => set({ sex: 'M' })} label="Masculino" />
           </div>
+          {!data.sex && (
+            <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>
+              El sexo es obligatorio para cálculos clínicos.
+            </p>
+          )}
         </Field>
+        {isInfant && (
+          <InfoCard variant="warn">
+            <strong>Protocolo pediátrico no soportado.</strong>{' '}
+            NutriCalc actualmente no soporta protocolo pediátrico para lactantes
+            (menores de 12 meses). Para este grupo, consultar guías específicas
+            de alimentación complementaria CENAN-MINSA.
+          </InfoCard>
+        )}
       </FormCard>
 
       <FormCard title="Antropometría">
@@ -259,7 +279,7 @@ export default function PatientForm({ patient }: { patient?: Patient }) {
         </button>
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || isInfant}
           className={btnPrimary + ' disabled:opacity-50'}
           style={{ background: 'var(--accent)', color: 'var(--paper)' }}
         >

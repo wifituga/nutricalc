@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import {
   calculateMacroDistribution,
   type MacroMode,
@@ -118,12 +119,14 @@ export default function MacroPanel({ vctKcal, ageYears, weightKg }: Props) {
         </div>
 
         {result.warnings.length > 0 && (
-          <div className="mt-2">
-            {result.warnings.map((w, i) => (
-              <p key={i} className="text-xs" style={{ color: 'var(--warn)' }}>
-                ⚠ {w}
-              </p>
-            ))}
+          <div
+            className="mt-3 px-3 py-2 border rounded-md text-xs flex items-start gap-2"
+            style={{ background: '#fdf6e3', borderColor: 'var(--warn)', color: '#7a5a00' }}
+          >
+            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              {result.warnings.map((w, i) => <p key={i}>{w}</p>)}
+            </div>
           </div>
         )}
       </div>

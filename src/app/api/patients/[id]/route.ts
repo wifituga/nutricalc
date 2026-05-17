@@ -1,12 +1,22 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { ageInYears } from '@/lib/calculations/age';
 
 const patchSchema = z.object({
   full_name:               z.string().min(1).optional(),
   document_id:             z.string().nullish(),
-  birth_date:              z.string().nullish(),
-  sex:                     z.enum(['M', 'F']).nullish(),
+  birth_date:              z.string().refine(
+    (s) => {
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return false;
+      const now = new Date();
+      const oneTwentyAgo = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate());
+      return d >= oneTwentyAgo && d <= now && ageInYears(d) >= 1;
+    },
+    { message: 'Fecha de nacimiento inválida o menor de 1 año (lactante no soportado).' },
+  ).optional(),
+  sex:                     z.enum(['M', 'F']).optional(),
   height_cm:               z.number().positive().nullish(),
   weight_kg:               z.number().positive().nullish(),
   weight_pregest_kg:       z.number().positive().nullish(),
