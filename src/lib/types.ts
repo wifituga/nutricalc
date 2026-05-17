@@ -73,6 +73,11 @@ export interface Nutritionist {
   created_at: string;
 }
 
+export type PhysiologicalState =
+  | 'standard'
+  | 'pregnancy_t1' | 'pregnancy_t2' | 'pregnancy_t3'
+  | 'lactation_0_6m' | 'lactation_6_12m';
+
 export interface Patient {
   id: string;
   clinic_id: string;
@@ -80,11 +85,19 @@ export interface Patient {
   full_name: string;
   document_id: string | null;
   birth_date: string | null;
-  sex: 'M' | 'F' | 'other' | null;
+  sex: 'M' | 'F' | null;
   height_cm: number | null;
   weight_kg: number | null;
+  weight_pregest_kg: number | null;
   clinical_profile: ClinicalProfile;
+  physiological_state: PhysiologicalState;
+  residence_area: 'urbana' | 'rural' | null;
+  lifestyle: 'ligero' | 'no_ligero' | null;
+  is_athlete: boolean;
+  protein_factor_override: number | null;
+  comorbidities: string[];
   custom_limits: ProfileLimits | null;
+  macro_distribution_override: Record<string, number> | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

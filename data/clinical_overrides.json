@@ -1,0 +1,299 @@
+{
+  "meta": {
+    "description": "Clinical overrides per comorbidity. Each comorbidity may override the base DRI/AMDR limits. When multiple comorbidities are selected, merge rules apply (see CONTEXT.md section 6).",
+    "sources": "KDOQI 2020 (renal), ADA 2024 (diabetes), AHA 2021 (HTA), DASH diet (HTA), AHA 2019 (dislipidemia), WHO 2017 (anemia)",
+    "note": "Values are starting points; nutritionist may override any limit manually."
+  },
+  "comorbidities": {
+    "renal_predialysis": {
+      "label": "Renal pre-diálisis (ERC estadios 3-5 sin diálisis)",
+      "source": "KDOQI 2020",
+      "overrides": {
+        "proteinas_g_per_kg": {
+          "min": 0.6,
+          "max": 0.8,
+          "default": 0.7
+        },
+        "fosforo_mg": {
+          "max": 800,
+          "label": "máx"
+        },
+        "potasio_mg": {
+          "max": 2700,
+          "label": "máx"
+        },
+        "sodio_mg": {
+          "max": 2300,
+          "label": "máx"
+        }
+      }
+    },
+    "renal_hemodialysis": {
+      "label": "Renal en hemodiálisis",
+      "source": "KDOQI 2020",
+      "overrides": {
+        "proteinas_g_per_kg": {
+          "min": 1.2,
+          "max": 1.4,
+          "default": 1.3
+        },
+        "fosforo_mg": {
+          "max": 1000,
+          "label": "máx"
+        },
+        "potasio_mg": {
+          "max": 3000,
+          "label": "máx"
+        },
+        "sodio_mg": {
+          "max": 2000,
+          "label": "máx"
+        },
+        "calcio_mg": {
+          "max": 1200,
+          "label": "máx (incluye fijadores)"
+        }
+      }
+    },
+    "diabetes_t1": {
+      "label": "Diabetes tipo 1",
+      "source": "ADA Standards of Care 2024",
+      "overrides": {
+        "carbohidratos_pct_vct": {
+          "min": 45,
+          "max": 60
+        },
+        "grasa_pct_vct": {
+          "min": 20,
+          "max": 30
+        },
+        "grasa_saturada_pct_vct": {
+          "max": 10,
+          "label": "máx"
+        },
+        "fibra_g": {
+          "min": 30,
+          "label": "mín"
+        },
+        "sodio_mg": {
+          "max": 2300,
+          "label": "máx"
+        }
+      }
+    },
+    "diabetes_t2": {
+      "label": "Diabetes tipo 2",
+      "source": "ADA Standards of Care 2024",
+      "overrides": {
+        "carbohidratos_pct_vct": {
+          "min": 45,
+          "max": 60
+        },
+        "grasa_pct_vct": {
+          "min": 20,
+          "max": 30
+        },
+        "grasa_saturada_pct_vct": {
+          "max": 10,
+          "label": "máx"
+        },
+        "fibra_g": {
+          "min": 30,
+          "label": "mín"
+        },
+        "sodio_mg": {
+          "max": 2300,
+          "label": "máx"
+        },
+        "proteinas_g_per_kg": {
+          "min": 1.0,
+          "max": 1.2,
+          "default": 1.1
+        }
+      }
+    },
+    "diabetes_gestational": {
+      "label": "Diabetes gestacional",
+      "source": "ADA Standards of Care 2024 + IOM pregnancy",
+      "overrides": {
+        "carbohidratos_pct_vct": {
+          "min": 40,
+          "max": 50,
+          "note": "Más restrictivo en CHO que DM tipo 2"
+        },
+        "grasa_pct_vct": {
+          "min": 30,
+          "max": 40
+        },
+        "fibra_g": {
+          "min": 30,
+          "label": "mín"
+        },
+        "proteinas_g_per_kg": {
+          "min": 1.1,
+          "max": 1.3,
+          "default": 1.1
+        }
+      }
+    },
+    "hypertension": {
+      "label": "Hipertensión arterial",
+      "source": "AHA 2021 + DASH diet",
+      "overrides": {
+        "sodio_mg": {
+          "max": 1500,
+          "label": "máx (DASH)"
+        },
+        "potasio_mg": {
+          "min": 4700,
+          "label": "mín"
+        },
+        "calcio_mg": {
+          "min": 1200,
+          "label": "mín"
+        },
+        "magnesio_mg": {
+          "min": 420,
+          "label": "mín"
+        },
+        "grasa_saturada_pct_vct": {
+          "max": 7,
+          "label": "máx"
+        }
+      }
+    },
+    "iron_deficiency_anemia": {
+      "label": "Anemia ferropénica",
+      "source": "WHO 2017 + clinical practice",
+      "overrides": {
+        "hierro_mg_target_multiplier": 1.5,
+        "hierro_mg_note": "Multiplicar RDA de hierro por 1.5; mostrar siempre hierro absorbible",
+        "vitamina_c_mg": {
+          "min": 100,
+          "label": "mín (potencia absorción de hierro no-hem)"
+        }
+      }
+    },
+    "dyslipidemia": {
+      "label": "Dislipidemia / Hipercolesterolemia",
+      "source": "AHA 2019",
+      "overrides": {
+        "grasa_saturada_pct_vct": {
+          "max": 7,
+          "label": "máx"
+        },
+        "grasa_trans_g": {
+          "max": 0,
+          "label": "evitar"
+        },
+        "colesterol_mg": {
+          "max": 200,
+          "label": "máx"
+        },
+        "fibra_soluble_g": {
+          "min": 10,
+          "label": "mín"
+        }
+      }
+    },
+    "older_adult": {
+      "label": "Adulto mayor (≥60 años) — auto-detectado",
+      "source": "IOM DRI + ESPEN",
+      "auto_apply_when": "age_years >= 60",
+      "overrides": {
+        "proteinas_g_per_kg": {
+          "min": 1.0,
+          "max": 1.2,
+          "default": 1.2,
+          "note": "Prevención de sarcopenia"
+        },
+        "calcio_mg": {
+          "min": 1200,
+          "label": "mín"
+        },
+        "vitamina_d_ug": {
+          "min": 20,
+          "label": "mín"
+        },
+        "vitamina_b12_ug": {
+          "min": 2.4,
+          "note": "Atención especial; absorción reducida"
+        },
+        "imc_saludable_referencia": 25.5
+      }
+    },
+    "athlete": {
+      "label": "Deportista (genérico)",
+      "source": "ISSN Position Stand 2017",
+      "overrides": {
+        "proteinas_g_per_kg": {
+          "min": 1.2,
+          "max": 2.0,
+          "default": 1.4,
+          "note": "Ajustar manualmente según tipo y carga de entrenamiento"
+        },
+        "carbohidratos_pct_vct": {
+          "min": 50,
+          "max": 65,
+          "note": "Mayor demanda energética"
+        }
+      }
+    }
+  },
+  "merge_rules": {
+    "description": "Cuando hay múltiples comorbilidades marcadas, aplicar estas reglas para combinar overrides.",
+    "rules": [
+      {
+        "type": "max_limit",
+        "applies_to": [
+          "sodio_mg",
+          "fosforo_mg",
+          "potasio_mg (en renales)",
+          "grasa_saturada_pct_vct",
+          "colesterol_mg",
+          "grasa_trans_g"
+        ],
+        "rule": "Tomar el valor MÁS BAJO (más restrictivo)",
+        "example": "DM2 sodio máx 2300 + HTA sodio máx 1500 → aplicar 1500"
+      },
+      {
+        "type": "min_limit",
+        "applies_to": [
+          "fibra_g",
+          "potasio_mg (en HTA)",
+          "calcio_mg",
+          "vitamina_c_mg",
+          "vitamina_d_ug"
+        ],
+        "rule": "Tomar el valor MÁS ALTO (más exigente)",
+        "example": "Sano fibra mín 25 + DM2 fibra mín 30 → aplicar 30"
+      },
+      {
+        "type": "range_intersection",
+        "applies_to": [
+          "carbohidratos_pct_vct",
+          "proteinas_pct_vct",
+          "grasa_pct_vct"
+        ],
+        "rule": "Intersección de rangos: max(mins), min(maxs). Si resulta vacío, mostrar conflicto.",
+        "example": "DM2 grasa 20-30% + HTA grasa 25-35% → resultado 25-30%"
+      },
+      {
+        "type": "protein_g_per_kg",
+        "applies_to": [
+          "proteinas_g_per_kg"
+        ],
+        "rule": "ESPECIAL: si dos comorbilidades piden rangos no superpuestos (ej. renal 0.6-0.8 + deportista 1.2-2.0), NO auto-mergear; mostrar alerta de conflicto y mantener el valor del primer perfil marcado o el editado manualmente.",
+        "example": "Renal pre-diálisis 0.6-0.8 + Deportista 1.2-2.0 → CONFLICTO, requiere decisión clínica"
+      },
+      {
+        "type": "iron_target",
+        "applies_to": [
+          "hierro_mg"
+        ],
+        "rule": "Si Anemia activa: target = RDA base × 1.5. Si además embarazo: tomar el mayor entre (RDA embarazo × 1.5) y (RDA base × 1.5).",
+        "example": "Mujer 25a anemia: 18 × 1.5 = 27 mg. Mujer 25a embarazo + anemia: 27 × 1.5 = 40.5 mg → tope UL 45 mg"
+      }
+    ]
+  }
+}
