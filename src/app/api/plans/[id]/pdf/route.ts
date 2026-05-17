@@ -4,8 +4,18 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import React from 'react';
 import { PlanDocument } from '@/components/pdf/PlanDocument';
 import { calculateTotals } from '@/lib/nutrition';
-import type { Food, MealPlan, MealPlanItem, Patient, NutrientProfile } from '@/lib/types';
+import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
+import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
 import type { DocumentProps } from '@react-pdf/renderer';
+
+const PROFILE_LABELS: Record<string, string> = {
+  adulto_sano: 'Adulto sano',
+  renal_predialisis: 'Renal pre-diálisis',
+  renal_dialisis: 'Renal en diálisis',
+  diabetes: 'Diabetes',
+  hipertension: 'Hipertensión',
+  custom: 'Personalizado',
+};
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,22 +48,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const foodsMap = new Map<number, Food>(items.map((i) => [i.food_id, i.foods]));
   const totals = calculateTotals(items, foodsMap);
 
-  const { data: profileData } = await supabase
-    .from('nutrient_profiles')
-    .select('*')
-    .eq('id', patient.clinical_profile)
-    .single();
-
-  const profile = profileData as NutrientProfile | null;
-  const profileLimits = patient.custom_limits ?? profile?.limits ?? {};
-  const profileName = profile?.name ?? patient.clinical_profile;
+  const { targets, vct } = await resolvePatientTargets(supabase, patient);
+  const profileName = PROFILE_LABELS[patient.clinical_profile] ?? patient.clinical_profile;
 
   const doc = React.createElement(PlanDocument, {
     plan: plan as unknown as MealPlan,
     patient,
     items,
     totals,
-    profileLimits,
+    targets,
+    vct,
     profileName,
     clinicName: (nutritionist?.clinics as unknown as { name: string } | null)?.name ?? '',
     nutritionistName: nutritionist?.full_name ?? '',

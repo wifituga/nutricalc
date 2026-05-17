@@ -8,7 +8,9 @@
     "start": "next start",
     "seed:foods": "tsx scripts/seed-foods.ts",
     "seed:profiles": "tsx scripts/seed-profiles.ts",
-    "seed": "tsx scripts/seed-profiles.ts && tsx scripts/seed-foods.ts"
+    "seed:dris": "tsx scripts/seed-dris.ts",
+    "seed": "tsx scripts/seed-profiles.ts && tsx scripts/seed-foods.ts && tsx scripts/seed-dris.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

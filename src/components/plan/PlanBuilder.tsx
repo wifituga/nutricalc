@@ -2,8 +2,10 @@
 
 import { useState, useCallback, useTransition } from 'react';
 import Link from 'next/link';
-import type { Food, MealPlan, MealPlanItem, Patient, ProfileLimits } from '@/lib/types';
-import { MEAL_LABELS, MEAL_SLOTS, calculateTotals, getAlertLevel, NUTRIENT_LABELS, PRIMARY_NUTRIENTS } from '@/lib/nutrition';
+import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
+import { MEAL_LABELS, MEAL_SLOTS, calculateTotals } from '@/lib/nutrition';
+import type { ResolvedTargets } from '@/lib/calculations/nutrientTargets';
+import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
 import FoodSearch from './FoodSearch';
 import MealSection from './MealSection';
 import TotalsPanel from './TotalsPanel';
@@ -12,11 +14,11 @@ interface Props {
   plan: MealPlan;
   patient: Patient;
   initialItems: (MealPlanItem & { foods: Food })[];
-  profileLimits: ProfileLimits;
-  profileName: string;
+  targets: ResolvedTargets;
+  vct: VCTBreakdown | null;
 }
 
-export default function PlanBuilder({ plan, patient, initialItems, profileLimits, profileName }: Props) {
+export default function PlanBuilder({ plan, patient, initialItems, targets, vct }: Props) {
   const [items, setItems] = useState<(MealPlanItem & { foods: Food })[]>(initialItems);
   const [activeMeal, setActiveMeal] = useState<string>('desayuno');
   const [isPending, startTransition] = useTransition();
@@ -148,7 +150,7 @@ export default function PlanBuilder({ plan, patient, initialItems, profileLimits
 
       {/* Right: totals panel */}
       <div className="w-72 shrink-0">
-        <TotalsPanel totals={totals} profileLimits={profileLimits} profileName={profileName} />
+        <TotalsPanel totals={totals} targets={targets} vct={vct} />
       </div>
     </div>
   );

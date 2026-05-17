@@ -48,8 +48,8 @@ No hay usuarios clínicos reales todavía → migración de datos no es necesari
 Ver `MIGRATION_PLAN.md` para el plan completo paso a paso.
 
 ### Sprints
-- [ ] **Sprint 1** — Cálculo energético FAO/OMS + antropometría completa
-- [ ] **Sprint 2** — DRIs IOM personalizados + targets por paciente
+- [x] **Sprint 1** — Cálculo energético FAO/OMS + antropometría completa
+- [x] **Sprint 2** — DRIs IOM personalizados + targets por paciente
 - [ ] **Sprint 3** — Comorbilidades múltiples + merge automático
 - [ ] **Sprint 4** — Estado fisiológico (embarazo/lactancia) + distribución de macros
 - [ ] **Sprint 5** — Medidas caseras TAFERA

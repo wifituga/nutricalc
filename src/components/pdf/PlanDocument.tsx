@@ -1,6 +1,8 @@
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
-import type { Food, MealPlan, MealPlanItem, Patient, ProfileLimits, NutrientTotals } from '@/lib/types';
-import { MEAL_LABELS, MEAL_SLOTS, NUTRIENT_LABELS, PRIMARY_NUTRIENTS, getAlertLevel } from '@/lib/nutrition';
+import type { Food, MealPlan, MealPlanItem, Patient, NutrientTotals } from '@/lib/types';
+import { MEAL_LABELS, MEAL_SLOTS, NUTRIENT_LABELS, PRIMARY_NUTRIENTS } from '@/lib/nutrition';
+import { getTargetLevel, type ResolvedTargets } from '@/lib/calculations/nutrientTargets';
+import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
 
 const styles = StyleSheet.create({
   page: {
@@ -82,7 +84,8 @@ interface Props {
   patient: Patient;
   items: (MealPlanItem & { foods: Food })[];
   totals: NutrientTotals;
-  profileLimits: ProfileLimits;
+  targets: ResolvedTargets;
+  vct: VCTBreakdown | null;
   profileName: string;
   clinicName: string;
   nutritionistName: string;
@@ -90,7 +93,7 @@ interface Props {
 }
 
 export function PlanDocument({
-  plan, patient, items, totals, profileLimits, profileName,
+  plan, patient, items, totals, targets, vct, profileName,
   clinicName, nutritionistName, nutritionistLicense,
 }: Props) {
   const today = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -139,15 +142,24 @@ export function PlanDocument({
 
         {/* Totals */}
         <View style={styles.totalsBox}>
-          <Text style={styles.totalsTitle}>Totales nutricionales del día</Text>
+          <Text style={styles.totalsTitle}>
+            Totales nutricionales del día{vct ? ` · VCT ${Math.round(vct.vct)} kcal` : ''}
+          </Text>
           {PRIMARY_NUTRIENTS.map((key) => {
             const info = NUTRIENT_LABELS[key];
             const value = totals[key];
-            const limit = profileLimits[key];
-            const level = value != null && limit ? getAlertLevel(value, limit) : 'neutral';
+            const target = targets[key];
+            const level = value != null && target ? getTargetLevel(value, target) : 'neutral';
             const valueStr = value != null
               ? `${value.toLocaleString('es-PE', { maximumFractionDigits: 1 })} ${info.unit}`
               : '—';
+            const targetStr = target
+              ? target.target != null
+                ? ` / ${target.target}`
+                : target.min != null
+                  ? ` / ≥${target.min}`
+                  : target.max != null ? ` / ≤${target.max}` : ''
+              : '';
             const colorStyle = level === 'alert' ? styles.alertDanger
               : level === 'warn' ? styles.alertWarn
               : level === 'ok' ? styles.alertOk
@@ -156,7 +168,9 @@ export function PlanDocument({
             return (
               <View key={key} style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{info.label}</Text>
-                <Text style={[styles.totalValue, ...(colorStyle ? [colorStyle] : [])]}>{valueStr}</Text>
+                <Text style={[styles.totalValue, ...(colorStyle ? [colorStyle] : [])]}>
+                  {valueStr}{targetStr}
+                </Text>
               </View>
             );
           })}

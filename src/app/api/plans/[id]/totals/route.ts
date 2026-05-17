@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateTotals } from '@/lib/nutrition';
-import type { Food, MealPlanItem } from '@/lib/types';
+import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
+import type { Food, MealPlanItem, Patient } from '@/lib/types';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,7 +12,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data, error } = await supabase
     .from('meal_plans')
-    .select('meal_plan_items(*, foods(*))')
+    .select('patients(*), meal_plan_items(*, foods(*))')
     .eq('id', id)
     .single();
 
@@ -21,5 +22,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const foodsMap = new Map<number, Food>(items.map((i) => [i.food_id, i.foods]));
   const totals = calculateTotals(items, foodsMap);
 
-  return NextResponse.json({ totals });
+  const patient = data.patients as unknown as Patient | null;
+  const { targets, vct } = patient
+    ? await resolvePatientTargets(supabase, patient)
+    : { targets: {}, vct: null };
+
+  return NextResponse.json({ totals, targets, vct });
 }
