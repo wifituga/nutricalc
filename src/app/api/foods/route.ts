@@ -4,31 +4,41 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { searchParams } = request.nextUrl;
-  const q = searchParams.get('q') ?? '';
-  const group = searchParams.get('group') ?? '';
+  const q = (searchParams.get('q') ?? '').trim();
+  const group = (searchParams.get('group') ?? '').trim();
   const limit = Math.min(Number(searchParams.get('limit') ?? 20), 100);
-  const offset = Number(searchParams.get('offset') ?? 0);
 
-  let query = supabase
-    .from('foods')
-    .select('id, code, group_letter, group_name, name, per_100g', { count: 'exact' })
-    .eq('active', true)
-    .range(offset, offset + limit - 1)
-    .order('name');
-
-  if (q.trim()) {
-    query = query.textSearch('name', q.trim().split(/\s+/).join(' & '), {
-      type: 'websearch',
-      config: 'spanish',
-    });
+  // Exact TPCA code shortcut (e.g. "A49", "a 49")
+  const codeMatch = q.match(/^([A-Za-z])\s*(\d+)$/);
+  if (codeMatch) {
+    const code = `${codeMatch[1].toUpperCase()}${codeMatch[2]}`;
+    const { data } = await supabase
+      .from('foods')
+      .select('id, code, group_letter, group_name, name, per_100g')
+      .eq('code', code)
+      .eq('active', true)
+      .limit(1);
+    if (data && data.length) {
+      return NextResponse.json({ data, count: data.length, limit, offset: 0 });
+    }
   }
 
-  if (group) {
-    query = query.eq('group_letter', group.toUpperCase());
-  }
+  const { data, error } = await supabase.rpc('search_foods', {
+    search_query: q,
+    group_filter: group ? group.toUpperCase() : null,
+    result_limit: limit,
+  });
 
-  const { data, error, count } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ data, count, limit, offset });
+  const rows = (data ?? []).map((f: Record<string, unknown>) => ({
+    id: f.id,
+    code: f.code,
+    group_letter: f.group_letter,
+    group_name: f.group_name,
+    name: f.name,
+    per_100g: f.per_100g,
+  }));
+
+  return NextResponse.json({ data: rows, count: rows.length, limit, offset: 0 });
 }

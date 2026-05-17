@@ -6,7 +6,9 @@ import { PlanDocument } from '@/components/pdf/PlanDocument';
 import { calculateTotals } from '@/lib/nutrition';
 import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
 import { COMORBIDITY_LABELS } from '@/lib/calculations/clinicalOverrides';
-import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
+import { calculateMacroDistribution } from '@/lib/calculations/macroDistribution';
+import { ageInYears } from '@/lib/calculations/age';
+import type { Food, MealPlan, MealPlanItem, Patient, HouseholdMeasure } from '@/lib/types';
 import type { DocumentProps } from '@react-pdf/renderer';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -45,6 +47,27 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ? comorbidities.map((c) => COMORBIDITY_LABELS[c] ?? c).join(', ')
     : 'Sin comorbilidades';
 
+  // Household measures referenced by the plan items
+  const measureIds = items
+    .map((i) => i.household_measure_id)
+    .filter((x): x is number => x != null);
+  const measures = new Map<number, HouseholdMeasure>();
+  if (measureIds.length) {
+    const { data: ms } = await supabase
+      .from('household_measures')
+      .select('id, food_id, measure_name, grams, edible_pct')
+      .in('id', measureIds);
+    for (const m of ms ?? []) measures.set(m.id as number, m as HouseholdMeasure);
+  }
+
+  // Macro distribution (AMDR auto) when VCT is available
+  const macros = vct && patient.birth_date
+    ? calculateMacroDistribution(vct.vct, 'amdr_auto', {
+        ageYears: ageInYears(new Date(patient.birth_date)),
+        weightKg: vct.weightUsed,
+      })
+    : null;
+
   const doc = React.createElement(PlanDocument, {
     plan: plan as unknown as MealPlan,
     patient,
@@ -52,6 +75,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     totals,
     targets,
     vct,
+    macros,
+    measures,
     profileName,
     clinicName: (nutritionist?.clinics as unknown as { name: string } | null)?.name ?? '',
     nutritionistName: nutritionist?.full_name ?? '',

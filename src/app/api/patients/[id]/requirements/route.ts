@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { calculateVCT, type PhysiologicalState } from '@/lib/calculations/energyRequirement';
+import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
+import type { Patient } from '@/lib/types';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -10,31 +11,46 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: p, error } = await supabase
+  const { data: patient, error } = await supabase
     .from('patients')
-    .select('birth_date,sex,height_cm,weight_kg,weight_pregest_kg,residence_area,lifestyle,physiological_state')
+    .select('*')
     .eq('id', id)
     .single();
 
-  if (error || !p) return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
+  if (error || !patient) {
+    return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
+  }
 
-  if (!p.birth_date || !p.sex || !p.height_cm || !p.weight_kg || !p.residence_area || !p.lifestyle) {
+  const { targets, vct, merged, comorbidities } =
+    await resolvePatientTargets(supabase, patient as Patient);
+
+  if (!vct) {
     return NextResponse.json(
-      { error: 'Datos antropométricos incompletos para calcular VCT' },
+      { error: 'Datos antropométricos incompletos para calcular requerimientos' },
       { status: 422 },
     );
   }
 
-  const result = calculateVCT({
-    sex: p.sex as 'M' | 'F',
-    birthDate: new Date(p.birth_date),
-    heightCm: Number(p.height_cm),
-    weightKg: Number(p.weight_kg),
-    weightPregestKg: p.weight_pregest_kg ? Number(p.weight_pregest_kg) : undefined,
-    residenceArea: p.residence_area as 'urbana' | 'rural',
-    lifestyle: p.lifestyle as 'ligero' | 'no_ligero',
-    physiologicalState: (p.physiological_state ?? 'standard') as PhysiologicalState,
-  });
+  const conflicts = Object.entries(merged)
+    .filter(([, m]) => m.conflict)
+    .map(([key, m]) => ({
+      key,
+      sources: m.conflictDetails?.sources ?? (m.source ? [m.source] : []),
+      message: `Rangos incompatibles para ${key} — requiere decisión clínica`,
+    }));
 
-  return NextResponse.json(result);
+  return NextResponse.json({
+    patient: {
+      id: patient.id,
+      full_name: patient.full_name,
+      sex: patient.sex,
+      birth_date: patient.birth_date,
+      physiological_state: patient.physiological_state,
+    },
+    vct,
+    targets,
+    override_sources: merged,
+    active_comorbidities: comorbidities,
+    conflicts,
+  });
 }

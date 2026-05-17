@@ -1,8 +1,24 @@
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
-import type { Food, MealPlan, MealPlanItem, Patient, NutrientTotals } from '@/lib/types';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import type { Food, MealPlan, MealPlanItem, Patient, NutrientTotals, HouseholdMeasure } from '@/lib/types';
 import { MEAL_LABELS, MEAL_SLOTS, NUTRIENT_LABELS, PRIMARY_NUTRIENTS } from '@/lib/nutrition';
 import { getTargetLevel, type ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
+import type { MacroBreakdown } from '@/lib/calculations/macroDistribution';
+
+function formatQuantity(
+  item: MealPlanItem,
+  measures: Map<number, HouseholdMeasure>,
+): string {
+  if (item.household_measure_id) {
+    const m = measures.get(item.household_measure_id);
+    if (m) {
+      const qty = item.household_measure_qty ?? 1;
+      const qtyStr = qty === 1 ? '' : `${qty} `;
+      return `${qtyStr}${m.measure_name} (${Math.round(item.grams)} g)`;
+    }
+  }
+  return `${Math.round(item.grams)} g`;
+}
 
 const styles = StyleSheet.create({
   page: {
@@ -43,8 +59,22 @@ const styles = StyleSheet.create({
   },
   code: { width: 36, fontFamily: 'Helvetica', fontSize: 9, color: '#6b4423' },
   foodName: { flex: 1, fontSize: 9 },
-  grams: { width: 40, textAlign: 'right', fontFamily: 'Helvetica', fontSize: 9 },
-  kcal: { width: 45, textAlign: 'right', fontFamily: 'Helvetica', fontSize: 9 },
+  grams: { width: 130, textAlign: 'right', fontFamily: 'Helvetica', fontSize: 9 },
+  kcal: { width: 50, textAlign: 'right', fontFamily: 'Helvetica', fontSize: 9 },
+  macrosBox: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#d6cfc0',
+    borderRadius: 4,
+    padding: 10,
+    backgroundColor: '#efe9dd',
+  },
+  macrosRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 1.5,
+  },
+  macroValue: { fontSize: 9, fontFamily: 'Helvetica', textAlign: 'right', width: 180 },
   totalsBox: {
     marginTop: 16,
     borderWidth: 1,
@@ -86,6 +116,8 @@ interface Props {
   totals: NutrientTotals;
   targets: ResolvedTargets;
   vct: VCTBreakdown | null;
+  macros: MacroBreakdown | null;
+  measures: Map<number, HouseholdMeasure>;
   profileName: string;
   clinicName: string;
   nutritionistName: string;
@@ -93,7 +125,7 @@ interface Props {
 }
 
 export function PlanDocument({
-  plan, patient, items, totals, targets, vct, profileName,
+  plan, patient, items, totals, targets, vct, macros, measures, profileName,
   clinicName, nutritionistName, nutritionistLicense,
 }: Props) {
   const today = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -131,7 +163,7 @@ export function PlanDocument({
                   <View key={item.id} style={styles.row}>
                     <Text style={styles.code}>{item.foods.code}</Text>
                     <Text style={styles.foodName}>{item.foods.name}</Text>
-                    <Text style={styles.grams}>{item.grams} g</Text>
+                    <Text style={styles.grams}>{formatQuantity(item, measures)}</Text>
                     <Text style={styles.kcal}>{kcal != null ? `${kcal} kcal` : '—'}</Text>
                   </View>
                 );
@@ -155,10 +187,10 @@ export function PlanDocument({
               : '—';
             const targetStr = target
               ? target.target != null
-                ? ` / ${target.target}`
+                ? ` / meta ${target.target}`
                 : target.min != null
-                  ? ` / ≥${target.min}`
-                  : target.max != null ? ` / ≤${target.max}` : ''
+                  ? ` / min ${target.min}`
+                  : target.max != null ? ` / max ${target.max}` : ''
               : '';
             const colorStyle = level === 'alert' ? styles.alertDanger
               : level === 'warn' ? styles.alertWarn
@@ -175,6 +207,31 @@ export function PlanDocument({
             );
           })}
         </View>
+
+        {/* Macro distribution */}
+        {macros && (
+          <View style={styles.macrosBox}>
+            <Text style={styles.totalsTitle}>Distribución de macronutrientes (AMDR sugerido)</Text>
+            <View style={styles.macrosRow}>
+              <Text style={styles.totalLabel}>Carbohidratos</Text>
+              <Text style={styles.macroValue}>
+                {macros.cho.grams} g · {macros.cho.kcal} kcal · {macros.cho.pct}%
+              </Text>
+            </View>
+            <View style={styles.macrosRow}>
+              <Text style={styles.totalLabel}>Proteínas</Text>
+              <Text style={styles.macroValue}>
+                {macros.prot.grams} g · {macros.prot.kcal} kcal · {macros.prot.pct}%
+              </Text>
+            </View>
+            <View style={styles.macrosRow}>
+              <Text style={styles.totalLabel}>Grasa</Text>
+              <Text style={styles.macroValue}>
+                {macros.fat.grams} g · {macros.fat.kcal} kcal · {macros.fat.pct}%
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Footer */}
         <View style={styles.footer} fixed>

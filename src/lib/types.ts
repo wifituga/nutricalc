@@ -6,13 +6,6 @@ export type Ug = number & { __brand: 'ug' };
 export type Kj = number & { __brand: 'kj' };
 
 export type MealSlot = 'desayuno' | 'media_manana' | 'almuerzo' | 'media_tarde' | 'cena';
-export type ClinicalProfile =
-  | 'adulto_sano'
-  | 'renal_predialisis'
-  | 'renal_dialisis'
-  | 'diabetes'
-  | 'hipertension'
-  | 'custom';
 
 export type AlertLevel = 'ok' | 'warn' | 'alert' | 'neutral';
 export type NutrientLimit = { max?: number; min?: number; label: string; unit: string };

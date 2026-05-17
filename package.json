@@ -7,10 +7,9 @@
     "build": "next build",
     "start": "next start",
     "seed:foods": "tsx scripts/seed-foods.ts",
-    "seed:profiles": "tsx scripts/seed-profiles.ts",
     "seed:dris": "tsx scripts/seed-dris.ts",
     "seed:measures": "tsx scripts/seed-measures.ts",
-    "seed": "tsx scripts/seed-profiles.ts && tsx scripts/seed-foods.ts && tsx scripts/seed-dris.ts && tsx scripts/seed-measures.ts",
+    "seed": "tsx scripts/seed-foods.ts && tsx scripts/seed-dris.ts && tsx scripts/seed-measures.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -18,6 +17,7 @@
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
     "dotenv": "^17.4.2",
+    "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
