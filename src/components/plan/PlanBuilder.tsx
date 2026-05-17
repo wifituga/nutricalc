@@ -6,7 +6,7 @@ import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
 import { MEAL_LABELS, MEAL_SLOTS, calculateTotals } from '@/lib/nutrition';
 import type { ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
-import { BarChart3, X } from 'lucide-react';
+import { BarChart3, X, Eye, ExternalLink } from 'lucide-react';
 import { ageInYears } from '@/lib/calculations/age';
 import { calculateAbsorbableIron, shouldShowAbsorbableIron } from '@/lib/calculations/ironBioavailability';
 import FoodSearch from './FoodSearch';
@@ -124,6 +124,17 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
             className="font-mono text-sm bg-transparent border rounded px-2 py-1 focus:outline-none"
             style={{ color: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
           />
+          {plan.share_token && (
+            <a
+              href={`/p/${plan.share_token}`}
+              target="_blank"
+              rel="noopener"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-sm"
+              style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+            >
+              <Eye size={13} /> Modo paciente <ExternalLink size={11} />
+            </a>
+          )}
           <a
             href={`/api/plans/${plan.id}/pdf`}
             target="_blank"

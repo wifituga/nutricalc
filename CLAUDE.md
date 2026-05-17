@@ -55,6 +55,11 @@ Ver `MIGRATION_PLAN.md` para el plan completo paso a paso.
 - [x] **Sprint 5** — Medidas caseras TAFERA
 - [x] **Sprint 6** — Hierro absorbible (fórmula Monsen)
 
+### UX Upgrade (post-auditoría, 3 fases en main)
+- [x] **Fase 1** — Bugs/completitud: unaccent+RPC, PDF mín/máx+medidas+macros, /requirements completo, limpieza legacy
+- [x] **Fase 2** — Pulido visual: form-primitives, PatientForm controlado+IMC vivo, página paciente con cards, FoodSearch teclado, responsive
+- [x] **Fase 3** — Modo paciente: share_token, ruta pública `/p/[token]`, PatientPlanView
+
 ## Estructura actual (será refactorizada en sprints)
 ```
 src/

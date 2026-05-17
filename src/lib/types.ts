@@ -103,6 +103,7 @@ export interface MealPlan {
   name: string;
   notes: string | null;
   is_template: boolean;
+  share_token: string | null;
   created_at: string;
   updated_at: string;
 }
