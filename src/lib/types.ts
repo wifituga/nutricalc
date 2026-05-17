@@ -89,7 +89,6 @@ export interface Patient {
   height_cm: number | null;
   weight_kg: number | null;
   weight_pregest_kg: number | null;
-  clinical_profile: ClinicalProfile;
   physiological_state: PhysiologicalState;
   residence_area: 'urbana' | 'rural' | null;
   lifestyle: 'ligero' | 'no_ligero' | null;

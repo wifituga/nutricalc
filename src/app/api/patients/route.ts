@@ -11,7 +11,6 @@ const patientSchema = z.object({
   height_cm:              z.number().positive().nullish(),
   weight_kg:              z.number().positive().nullish(),
   weight_pregest_kg:      z.number().positive().nullish(),
-  clinical_profile:       z.string().default('adulto_sano'),
   physiological_state:    z.enum([
     'standard',
     'pregnancy_t1', 'pregnancy_t2', 'pregnancy_t3',

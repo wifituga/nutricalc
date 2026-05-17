@@ -5,17 +5,9 @@ import React from 'react';
 import { PlanDocument } from '@/components/pdf/PlanDocument';
 import { calculateTotals } from '@/lib/nutrition';
 import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
+import { COMORBIDITY_LABELS } from '@/lib/calculations/clinicalOverrides';
 import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
 import type { DocumentProps } from '@react-pdf/renderer';
-
-const PROFILE_LABELS: Record<string, string> = {
-  adulto_sano: 'Adulto sano',
-  renal_predialisis: 'Renal pre-diálisis',
-  renal_dialisis: 'Renal en diálisis',
-  diabetes: 'Diabetes',
-  hipertension: 'Hipertensión',
-  custom: 'Personalizado',
-};
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -48,8 +40,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const foodsMap = new Map<number, Food>(items.map((i) => [i.food_id, i.foods]));
   const totals = calculateTotals(items, foodsMap);
 
-  const { targets, vct } = await resolvePatientTargets(supabase, patient);
-  const profileName = PROFILE_LABELS[patient.clinical_profile] ?? patient.clinical_profile;
+  const { targets, vct, comorbidities } = await resolvePatientTargets(supabase, patient);
+  const profileName = comorbidities.length > 0
+    ? comorbidities.map((c) => COMORBIDITY_LABELS[c] ?? c).join(', ')
+    : 'Sin comorbilidades';
 
   const doc = React.createElement(PlanDocument, {
     plan: plan as unknown as MealPlan,

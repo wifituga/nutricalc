@@ -1,15 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import type { Patient } from '@/lib/types';
-
-const PROFILE_LABELS: Record<string, string> = {
-  adulto_sano: 'Adulto sano',
-  renal_predialisis: 'Renal pre-diálisis',
-  renal_dialisis: 'Renal en diálisis',
-  diabetes: 'Diabetes',
-  hipertension: 'Hipertensión',
-  custom: 'Personalizado',
-};
+import { COMORBIDITY_LABELS } from '@/lib/calculations/clinicalOverrides';
 
 export default async function PatientsPage({
   searchParams,
@@ -21,7 +13,7 @@ export default async function PatientsPage({
 
   let query = supabase
     .from('patients')
-    .select('id, full_name, document_id, clinical_profile, birth_date, created_at')
+    .select('id, full_name, document_id, comorbidities, birth_date, created_at')
     .order('full_name');
 
   if (q?.trim()) {
@@ -62,7 +54,7 @@ export default async function PatientsPage({
               <tr>
                 <th className="text-left px-4 py-2 font-medium" style={{ color: 'var(--ink-soft)' }}>Nombre</th>
                 <th className="text-left px-4 py-2 font-medium" style={{ color: 'var(--ink-soft)' }}>DNI</th>
-                <th className="text-left px-4 py-2 font-medium" style={{ color: 'var(--ink-soft)' }}>Perfil clínico</th>
+                <th className="text-left px-4 py-2 font-medium" style={{ color: 'var(--ink-soft)' }}>Comorbilidades</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
@@ -80,7 +72,11 @@ export default async function PatientsPage({
                     {patient.document_id ?? '—'}
                   </td>
                   <td className="px-4 py-3" style={{ color: 'var(--ink-soft)' }}>
-                    {PROFILE_LABELS[patient.clinical_profile ?? ''] ?? patient.clinical_profile}
+                    {patient.comorbidities && patient.comorbidities.length > 0
+                      ? patient.comorbidities
+                          .map((c) => COMORBIDITY_LABELS[c] ?? c)
+                          .join(', ')
+                      : 'Sin comorbilidades'}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link

@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { Patient, PhysiologicalState } from '@/lib/types';
+import { SELECTABLE_COMORBIDITIES } from '@/lib/calculations/clinicalOverrides';
+import { ageInYears } from '@/lib/calculations/age';
 
 const PHYSIO_OPTIONS: { value: PhysiologicalState; label: string }[] = [
   { value: 'standard',         label: 'Estándar' },
@@ -24,8 +26,21 @@ export default function PatientForm({ patient }: Props) {
   const [physState, setPhysState] = useState<PhysiologicalState>(
     patient?.physiological_state ?? 'standard',
   );
+  const [comorbidities, setComorbidities] = useState<string[]>(
+    patient?.comorbidities ?? [],
+  );
+  const [isAthlete, setIsAthlete] = useState<boolean>(patient?.is_athlete ?? false);
+  const [birthDate, setBirthDate] = useState<string>(patient?.birth_date ?? '');
 
   const isPregnancy = physState.startsWith('pregnancy');
+  const ageYears = birthDate ? ageInYears(new Date(birthDate)) : null;
+  const isOlderAdult = ageYears != null && ageYears >= 60;
+
+  function toggleComorbidity(code: string) {
+    setComorbidities((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -46,8 +61,11 @@ export default function PatientForm({ patient }: Props) {
       physiological_state:   physState,
       residence_area:        fd.get('residence_area') || null,
       lifestyle:             fd.get('lifestyle') || null,
-      is_athlete:            fd.get('is_athlete') === 'on',
-      clinical_profile:      fd.get('clinical_profile'),
+      is_athlete:            isAthlete,
+      protein_factor_override: fd.get('protein_factor_override')
+        ? Number(fd.get('protein_factor_override'))
+        : null,
+      comorbidities:         comorbidities,
       notes:                 fd.get('notes') || null,
     };
 
@@ -78,7 +96,19 @@ export default function PatientForm({ patient }: Props) {
       <Section title="Identificación">
         <Field label="Nombre completo *" name="full_name" required defaultValue={patient?.full_name} />
         <Field label="DNI" name="document_id" defaultValue={patient?.document_id ?? ''} />
-        <Field label="Fecha de nacimiento" name="birth_date" type="date" defaultValue={patient?.birth_date ?? ''} />
+        <div>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+            Fecha de nacimiento
+          </label>
+          <input
+            name="birth_date"
+            type="date"
+            value={birthDate}
+            onChange={(e) => setBirthDate(e.target.value)}
+            className="w-full px-3 py-2 rounded border text-sm focus:outline-none"
+            style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
+          />
+        </div>
 
         <Select
           label="Sexo"
@@ -141,29 +171,53 @@ export default function PatientForm({ patient }: Props) {
         <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--ink)' }}>
           <input
             type="checkbox"
-            name="is_athlete"
-            defaultChecked={patient?.is_athlete ?? false}
+            checked={isAthlete}
+            onChange={(e) => setIsAthlete(e.target.checked)}
             className="rounded"
           />
           Deportista / actividad física intensa
         </label>
+        {isAthlete && (
+          <Field
+            label="Factor proteico (g/kg peso saludable)"
+            name="protein_factor_override"
+            type="number"
+            step="0.1"
+            defaultValue={patient?.protein_factor_override?.toString() ?? ''}
+          />
+        )}
       </Section>
 
       {/* ── Perfil clínico ── */}
-      <Section title="Perfil clínico">
-        <Select
-          label="Perfil base"
-          name="clinical_profile"
-          defaultValue={patient?.clinical_profile ?? 'adulto_sano'}
-          options={[
-            { value: 'adulto_sano',       label: 'Adulto sano' },
-            { value: 'renal_predialisis', label: 'Renal pre-diálisis' },
-            { value: 'renal_dialisis',    label: 'Renal en diálisis' },
-            { value: 'diabetes',          label: 'Diabetes' },
-            { value: 'hipertension',      label: 'Hipertensión' },
-            { value: 'custom',            label: 'Personalizado' },
-          ]}
-        />
+      <Section title="Perfil clínico (puede marcar varios)">
+        <div className="grid grid-cols-1 gap-1.5">
+          {SELECTABLE_COMORBIDITIES.map((c) => (
+            <label
+              key={c.code}
+              className="flex items-center gap-2 text-sm cursor-pointer"
+              style={{ color: 'var(--ink)' }}
+            >
+              <input
+                type="checkbox"
+                checked={comorbidities.includes(c.code)}
+                onChange={() => toggleComorbidity(c.code)}
+                className="rounded"
+              />
+              {c.label}
+            </label>
+          ))}
+        </div>
+
+        {isOlderAdult && (
+          <div
+            className="rounded border px-3 py-2 text-xs"
+            style={{ borderColor: 'var(--rule)', background: 'var(--paper)', color: 'var(--ink-soft)' }}
+          >
+            Adulto mayor detectado automáticamente (≥60 años). Se aplican overrides:
+            proteína 1.2 g/kg, calcio 1200 mg, vitamina D 20 µg.
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
             Notas clínicas

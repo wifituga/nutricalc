@@ -1,6 +1,13 @@
 import { NUTRIENT_LABELS } from '@/lib/nutrition';
 import type { AlertLevel, FoodNutrients } from '@/lib/types';
 import type { DRIValue } from './driLookup';
+import type { MergedTargets } from './comorbidityMerge';
+
+// Override-namespace keys that map 1:1 onto TPCA/food nutrient keys
+const OVERRIDE_TO_FOOD: (keyof FoodNutrients)[] = [
+  'sodio_mg', 'potasio_mg', 'fosforo_mg', 'calcio_mg',
+  'fibra_g', 'hierro_mg', 'vitamina_c_mg',
+];
 
 // DRI nutrient_key → TPCA/food nutrient key (FoodNutrients).
 // sodio_mg / potasio_mg have no IOM DRI here — they come from comorbidity
@@ -29,6 +36,9 @@ export type ResolvedTarget = {
   max?: number;     // UL — do not exceed
   target?: number;  // energy — aim for this (VCT)
   basis?: 'RDA' | 'AI' | 'UL' | 'VCT';
+  source?: string;     // comorbidity that imposed the limit (detail view)
+  baseValue?: number;  // original base value before override
+  conflict?: boolean;  // incompatible ranges — needs clinical decision
 };
 
 export type ResolvedTargets = Partial<Record<keyof FoodNutrients, ResolvedTarget>>;
@@ -67,6 +77,54 @@ export function buildTargets(
   }
 
   return targets;
+}
+
+/**
+ * Overlays merged comorbidity limits onto base DRI targets.
+ * - Minerals/vitamins that map 1:1 to food keys get min/max/target + source.
+ * - Protein g/kg is converted to grams using the calculation weight.
+ */
+export function applyMergedOverrides(
+  base: ResolvedTargets,
+  merged: MergedTargets,
+  weightKg: number | null,
+): ResolvedTargets {
+  const out: ResolvedTargets = { ...base };
+
+  for (const key of OVERRIDE_TO_FOOD) {
+    const m = merged[key];
+    if (!m) continue;
+    const info = NUTRIENT_LABELS[key];
+    if (!info) continue;
+    const prev = out[key];
+    out[key] = {
+      label: info.label,
+      unit: info.unit,
+      min: m.min ?? prev?.min,
+      max: m.max ?? prev?.max,
+      target: m.target,
+      basis: prev?.basis,
+      source: m.source,
+      baseValue: m.baseValue ?? prev?.min,
+      conflict: m.conflict,
+    };
+  }
+
+  const prot = merged.proteinas_g_per_kg;
+  if (prot && weightKg) {
+    const info = NUTRIENT_LABELS.proteinas_g;
+    out.proteinas_g = {
+      label: info.label,
+      unit: info.unit,
+      min: prot.min != null ? Math.round(prot.min * weightKg) : out.proteinas_g?.min,
+      max: prot.max != null ? Math.round(prot.max * weightKg) : undefined,
+      target: prot.target != null ? Math.round(prot.target * weightKg) : undefined,
+      source: prot.source,
+      conflict: prot.conflict,
+    };
+  }
+
+  return out;
 }
 
 export function getTargetLevel(

@@ -3,17 +3,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import NewPlanButton from '@/components/ui/NewPlanButton';
 import DeletePatientButton from '@/components/ui/DeletePatientButton';
-import { calculateVCT, type PhysiologicalState } from '@/lib/calculations/energyRequirement';
 import { ageInYears } from '@/lib/calculations/age';
-
-const PROFILE_LABELS: Record<string, string> = {
-  adulto_sano:       'Adulto sano',
-  renal_predialisis: 'Renal pre-diálisis',
-  renal_dialisis:    'Renal en diálisis',
-  diabetes:          'Diabetes',
-  hipertension:      'Hipertensión',
-  custom:            'Personalizado',
-};
+import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
+import { COMORBIDITY_LABELS } from '@/lib/calculations/clinicalOverrides';
+import RequirementsDetail from '@/components/plan/RequirementsDetail';
 
 const PHYSIO_LABELS: Record<string, string> = {
   standard:         '',
@@ -52,25 +45,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const today = new Date();
   const age = patient.birth_date ? ageInYears(new Date(patient.birth_date), today) : null;
 
-  // Calculate VCT if enough data available
-  let vct: ReturnType<typeof calculateVCT> | null = null;
-  if (patient.birth_date && patient.sex && patient.height_cm && patient.weight_kg
-      && patient.residence_area && patient.lifestyle) {
-    try {
-      vct = calculateVCT({
-        sex: patient.sex as 'M' | 'F',
-        birthDate: new Date(patient.birth_date),
-        heightCm: Number(patient.height_cm),
-        weightKg: Number(patient.weight_kg),
-        weightPregestKg: patient.weight_pregest_kg ? Number(patient.weight_pregest_kg) : undefined,
-        residenceArea: patient.residence_area as 'urbana' | 'rural',
-        lifestyle: patient.lifestyle as 'ligero' | 'no_ligero',
-        physiologicalState: (patient.physiological_state ?? 'standard') as PhysiologicalState,
-      });
-    } catch {
-      vct = null;
-    }
-  }
+  const { vct, merged, comorbidities } = await resolvePatientTargets(supabase, patient);
 
   const physioLabel = patient.physiological_state
     ? PHYSIO_LABELS[patient.physiological_state] ?? ''
@@ -87,7 +62,9 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             {patient.full_name}
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ink-soft)' }}>
-            {PROFILE_LABELS[patient.clinical_profile] ?? patient.clinical_profile}
+            {comorbidities.length > 0
+              ? comorbidities.map((c) => COMORBIDITY_LABELS[c] ?? c).join(' · ')
+              : 'Sin comorbilidades'}
             {physioLabel ? ` · ${physioLabel}` : ''}
             {age !== null ? ` · ${age} años` : ''}
             {patient.sex ? ` · ${patient.sex === 'M' ? 'Masculino' : 'Femenino'}` : ''}
@@ -183,6 +160,9 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
           para calcular el VCT.
         </div>
       )}
+
+      {/* ── Detalle por comorbilidad ── */}
+      <RequirementsDetail merged={merged} comorbidities={comorbidities} />
 
       {/* ── Planes ── */}
       <div className="flex items-center justify-between mb-3">
