@@ -1,6 +1,7 @@
 /**
  * Seed script: data/medidas_caseras.json → household_measures table.
- * Only high-confidence TAFERA 2016 matches (MVP rule #7).
+ * Only high-confidence TAFERA 2016 matches (MVP rule #7), más overrides
+ * manuales aprobados caso por caso (MANUAL_APPROVALS abajo).
  * Run: npx tsx scripts/seed-measures.ts
  */
 import { createClient } from '@supabase/supabase-js';
@@ -19,6 +20,26 @@ type Measure = {
   tpca_code: string | null;
   match_confidence: 'high' | 'medium' | 'unmatched';
 };
+
+// Medidas TAFERA 'medium' aprobadas manualmente por el equipo clínico.
+// Cada entrada debe documentar por qué se acepta el match.
+const MANUAL_APPROVALS: Array<{
+  tpca_code: string;
+  measure_name: string;
+  grams: number;
+  tafera_code: string;
+  edible_pct: number | null;
+  notes: string;
+}> = [
+  {
+    tpca_code: 'A49', // Pan francés fortificado con hierro
+    measure_name: 'Unidad mediana',
+    grams: 62.3,
+    tafera_code: '1-129',
+    edible_pct: 100,
+    notes: 'Aprobado manual: TAFERA "Pan francés de" (nombre truncado) = TPCA A49',
+  },
+];
 
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -62,6 +83,26 @@ async function main() {
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
   console.log(`Mapped to foods: ${rows.length} (skipped ${high.length - rows.length} without TPCA match)`);
+
+  // Append manual approvals (medium-confidence matches validados a mano).
+  for (const ap of MANUAL_APPROVALS) {
+    const foodId = codeToId.get(ap.tpca_code);
+    if (!foodId) {
+      console.warn(`  SKIP manual approval ${ap.tpca_code}: no foods row`);
+      continue;
+    }
+    rows.push({
+      food_id: foodId,
+      measure_name: ap.measure_name,
+      grams: ap.grams,
+      tafera_code: ap.tafera_code,
+      match_confidence: 'high' as const,
+      edible_pct: ap.edible_pct,
+      source: 'TAFERA_2016_manual',
+      active: true,
+    });
+  }
+  console.log(`+${MANUAL_APPROVALS.length} manual approvals → ${rows.length} total`);
 
   const BATCH = 200;
   let done = 0;
