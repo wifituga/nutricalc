@@ -70,7 +70,18 @@ async function main() {
     'Tubérculos, raíces y derivados': 'U',
   };
 
-  const rows = raw.factors.map((f) => {
+  type Row = {
+    food_id: number | null;
+    food_name_raw: string;
+    group_name: string;
+    cooking_method: string;
+    factor: number;
+    from_1985: boolean;
+    notes: string | null;
+  };
+
+  // First pass: score-best mapping per entry
+  const provisional: Row[] = raw.factors.map((f) => {
     const letter = groupToLetter[f.group];
     const candidates = (foods ?? []).filter((x) => x.group_letter === letter);
     let best: { id: number; name: string; s: number } | null = null;
@@ -89,8 +100,24 @@ async function main() {
     };
   });
 
+  // Second pass: avoid (food_id, cooking_method) collisions — the unique constraint
+  // doesn't allow them. Keep the first mapped row for each (food_id, method) key
+  // and demote subsequent ones to food_id=null (still searchable via group fallback).
+  const seen = new Set<string>();
+  let demoted = 0;
+  const rows: Row[] = provisional.map((r) => {
+    if (r.food_id == null) return r;
+    const key = `${r.food_id}|${r.cooking_method}`;
+    if (seen.has(key)) {
+      demoted++;
+      return { ...r, food_id: null, notes: `${r.notes ?? ''} · demoted (collision)` };
+    }
+    seen.add(key);
+    return r;
+  });
+
   const mapped = rows.filter((r) => r.food_id != null).length;
-  console.log(`Total factors: ${rows.length} · mapped to food_id: ${mapped} · unmapped: ${rows.length - mapped}`);
+  console.log(`Total factors: ${rows.length} · mapped: ${mapped} · group-only: ${rows.length - mapped} (${demoted} demoted by collision)`);
 
   const BATCH = 100;
   let done = 0;
