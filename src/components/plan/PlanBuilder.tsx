@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useCallback, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
 import { MEAL_LABELS, MEAL_SLOTS, calculateTotals } from '@/lib/nutrition';
 import type { ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
-import { BarChart3, X, Eye, ExternalLink } from 'lucide-react';
+import { BarChart3, X, Eye, ExternalLink, Copy, ShoppingBag } from 'lucide-react';
 import { ClinicalDisclaimer } from '@/components/ui/ClinicalDisclaimer';
 import { ageInYears } from '@/lib/calculations/age';
 import { calculateAbsorbableIron, shouldShowAbsorbableIron } from '@/lib/calculations/ironBioavailability';
@@ -26,8 +27,10 @@ interface Props {
 }
 
 export default function PlanBuilder({ plan, patient, initialItems, targets, vct }: Props) {
+  const router = useRouter();
   const [items, setItems] = useState<(MealPlanItem & { foods: Food })[]>(initialItems);
   const [activeMeal, setActiveMeal] = useState<string>('desayuno');
+  const [duplicating, setDuplicating] = useState(false);
   const [showTotals, setShowTotals] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [planName, setPlanName] = useState(plan.name);
@@ -87,6 +90,21 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
     setItems((prev) => prev.filter((i) => i.id !== itemId));
   }, []);
 
+  const substituteItem = useCallback(async (itemId: string, newFoodId: number) => {
+    const res = await fetch(`/api/plans/items/${itemId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        food_id: newFoodId,
+        household_measure_id: null,
+        household_measure_qty: null,
+      }),
+    });
+    if (!res.ok) return;
+    const updated = await res.json() as MealPlanItem & { foods: Food };
+    setItems((prev) => prev.map((i) => i.id === itemId ? updated : i));
+  }, []);
+
   async function savePlanMeta() {
     setSaving(true);
     await fetch(`/api/plans/${plan.id}`, {
@@ -95,6 +113,27 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
       body: JSON.stringify({ name: planName, plan_date: planDate }),
     });
     setSaving(false);
+  }
+
+  async function duplicatePlan() {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const suggested = tomorrow.toISOString().split('T')[0];
+    const newDate = window.prompt('Fecha del nuevo plan (YYYY-MM-DD):', suggested);
+    if (!newDate) return;
+    setDuplicating(true);
+    const res = await fetch(`/api/plans/${plan.id}/duplicate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan_date: newDate }),
+    });
+    setDuplicating(false);
+    if (!res.ok) {
+      window.alert('Error al duplicar el plan');
+      return;
+    }
+    const created = await res.json();
+    router.push(`/patients/${patient.id}/plans/${created.id}`);
   }
 
   const macroResult = vct && ageYears != null
@@ -168,6 +207,25 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
                 <Eye size={13} /> Modo paciente <ExternalLink size={11} />
               </a>
             )}
+            <button
+              type="button"
+              onClick={duplicatePlan}
+              disabled={duplicating}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors disabled:opacity-50"
+              style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+              title="Crear copia con los mismos alimentos en otra fecha"
+            >
+              <Copy size={13} /> {duplicating ? 'Duplicando…' : 'Duplicar'}
+            </button>
+            <a
+              href={`/api/plans/${plan.id}/shopping-list`}
+              target="_blank"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors"
+              style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+              title="Lista de compras agregada"
+            >
+              <ShoppingBag size={13} /> Compras
+            </a>
             <a
               href={`/api/plans/${plan.id}/pdf`}
               target="_blank"
@@ -218,6 +276,7 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
           items={items.filter((i) => i.meal === activeMeal)}
           onUpdateItem={updateItem}
           onRemove={removeItem}
+          onSubstitute={substituteItem}
         />
 
         <ClinicalDisclaimer variant="inline" />

@@ -12,6 +12,7 @@ import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
 import { COMORBIDITY_LABELS } from '@/lib/calculations/clinicalOverrides';
 import RequirementsDetail from '@/components/plan/RequirementsDetail';
 import { ClinicalDisclaimer } from '@/components/ui/ClinicalDisclaimer';
+import MeasurementHistory from '@/components/ui/MeasurementHistory';
 
 const PHYSIO_LABELS: Record<string, string> = {
   pregnancy_t1: 'Embarazo T1', pregnancy_t2: 'Embarazo T2', pregnancy_t3: 'Embarazo T3',
@@ -177,6 +178,8 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
       )}
 
       <RequirementsDetail merged={merged} comorbidities={comorbidities} />
+
+      <MeasurementHistory patientId={id} heightCmHint={patient.height_cm} />
 
       {/* Planes */}
       <section>

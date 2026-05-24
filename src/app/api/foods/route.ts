@@ -8,16 +8,22 @@ export async function GET(request: NextRequest) {
   const group = (searchParams.get('group') ?? '').trim();
   const limit = Math.min(Number(searchParams.get('limit') ?? 20), 100);
 
-  // Exact TPCA code shortcut (e.g. "A49", "a 49")
-  const codeMatch = q.match(/^([A-Za-z])\s*(\d+)$/);
+  // TPCA code shortcut: exact ("A49", "a 49") or prefix ("A4", "T")
+  const codeMatch = q.match(/^([A-Za-z])\s*(\d*)$/);
   if (codeMatch) {
-    const code = `${codeMatch[1].toUpperCase()}${codeMatch[2]}`;
-    const { data } = await supabase
+    const letter = codeMatch[1].toUpperCase();
+    const digits = codeMatch[2];
+    const code = `${letter}${digits}`;
+    const codeQuery = supabase
       .from('foods')
       .select('id, code, group_letter, group_name, name, per_100g')
-      .eq('code', code)
       .eq('active', true)
-      .limit(1);
+      .order('code')
+      .limit(limit);
+    // Exact for full code, prefix for partial
+    const { data } = digits
+      ? await codeQuery.ilike('code', `${code}%`)
+      : await codeQuery.eq('group_letter', letter);
     if (data && data.length) {
       return NextResponse.json({ data, count: data.length, limit, offset: 0 });
     }

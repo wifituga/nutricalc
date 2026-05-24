@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/ui/Sidebar';
+import CommandPalette from '@/components/ui/CommandPalette';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -24,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="flex-1 overflow-y-auto p-6" style={{ background: 'var(--paper)' }}>
         {children}
       </main>
+      <CommandPalette />
     </div>
   );
 }

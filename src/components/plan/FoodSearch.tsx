@@ -113,7 +113,7 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Buscar alimento TPCA... (↑↓ Enter)"
+          placeholder="Buscar alimento o código TPCA (ej. A49, A4...)"
           className="w-full px-3 py-2 rounded border text-sm focus:outline-none"
           style={{ background: 'var(--paper-warm)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
         />

@@ -50,9 +50,18 @@ export default function Sidebar({ userName, clinicName }: { userName: string; cl
         })}
       </nav>
 
-      <div className="px-5 py-4 border-t text-xs" style={{ borderColor: 'var(--rule)' }}>
+      <div className="px-5 py-4 border-t text-xs space-y-2" style={{ borderColor: 'var(--rule)' }}>
         <p className="truncate font-medium" style={{ color: 'var(--ink)' }}>{userName}</p>
-        <form action={logout} className="mt-2">
+        <p className="text-[11px]" style={{ color: 'var(--ink-soft)' }}>
+          <kbd
+            className="font-mono px-1 py-0.5 rounded border text-[10px]"
+            style={{ borderColor: 'var(--rule)' }}
+          >
+            Ctrl+K
+          </kbd>{' '}
+          búsqueda rápida
+        </p>
+        <form action={logout}>
           <button
             type="submit"
             className="text-xs hover:underline"

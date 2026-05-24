@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Shuffle } from 'lucide-react';
 import type { Food, MealPlanItem, HouseholdMeasure } from '@/lib/types';
+import SubstitutesPopover from './SubstitutesPopover';
 
 type Item = MealPlanItem & { foods: Food };
 type Patch = { grams: number; household_measure_id?: number | null; household_measure_qty?: number | null };
@@ -11,9 +12,10 @@ interface Props {
   items: Item[];
   onUpdateItem: (itemId: string, patch: Patch) => Promise<void>;
   onRemove: (itemId: string) => Promise<void>;
+  onSubstitute?: (itemId: string, newFoodId: number) => Promise<void>;
 }
 
-export default function MealSection({ items, onUpdateItem, onRemove }: Props) {
+export default function MealSection({ items, onUpdateItem, onRemove, onSubstitute }: Props) {
   if (items.length === 0) {
     return (
       <div
@@ -39,6 +41,7 @@ export default function MealSection({ items, onUpdateItem, onRemove }: Props) {
           isFirst={idx === 0}
           onUpdateItem={onUpdateItem}
           onRemove={onRemove}
+          onSubstitute={onSubstitute}
         />
       ))}
     </ul>
@@ -46,12 +49,13 @@ export default function MealSection({ items, onUpdateItem, onRemove }: Props) {
 }
 
 function FoodRow({
-  item, isFirst, onUpdateItem, onRemove,
+  item, isFirst, onUpdateItem, onRemove, onSubstitute,
 }: {
   item: Item;
   isFirst: boolean;
   onUpdateItem: (id: string, patch: Patch) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
+  onSubstitute?: (id: string, newFoodId: number) => Promise<void>;
 }) {
   const [measures, setMeasures] = useState<HouseholdMeasure[]>([]);
   const [unit, setUnit] = useState<string>(
@@ -61,6 +65,7 @@ function FoodRow({
   const [qty, setQty] = useState(item.household_measure_qty ?? 1);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [showSubstitutes, setShowSubstitutes] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -209,8 +214,8 @@ function FoodRow({
           )}
         </div>
 
-        {/* Right: delete */}
-        <div className="shrink-0 pt-1">
+        {/* Right: actions */}
+        <div className="shrink-0 pt-1 flex items-center gap-1">
           {confirming ? (
             <div className="flex items-center gap-1">
               <button
@@ -229,18 +234,43 @@ function FoodRow({
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setConfirming(true)}
-              aria-label={`Eliminar ${item.foods.name}`}
-              title="Eliminar"
-              className="p-2 rounded-md transition-colors hover:bg-[color:var(--paper-warm)]"
-              style={{ color: 'var(--ink-soft)' }}
-            >
-              <Trash2 size={15} />
-            </button>
+            <>
+              {onSubstitute && (
+                <button
+                  onClick={() => setShowSubstitutes(true)}
+                  aria-label={`Sustituir ${item.foods.name}`}
+                  title="Sustituir por alimento similar"
+                  className="p-2 rounded-md transition-colors hover:bg-[color:var(--paper-warm)]"
+                  style={{ color: 'var(--ink-soft)' }}
+                >
+                  <Shuffle size={15} />
+                </button>
+              )}
+              <button
+                onClick={() => setConfirming(true)}
+                aria-label={`Eliminar ${item.foods.name}`}
+                title="Eliminar"
+                className="p-2 rounded-md transition-colors hover:bg-[color:var(--paper-warm)]"
+                style={{ color: 'var(--ink-soft)' }}
+              >
+                <Trash2 size={15} />
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {showSubstitutes && onSubstitute && (
+        <SubstitutesPopover
+          foodId={item.food_id}
+          foodName={item.foods.name}
+          onSelect={async (subId) => {
+            setShowSubstitutes(false);
+            await onSubstitute(item.id, subId);
+          }}
+          onClose={() => setShowSubstitutes(false)}
+        />
+      )}
     </li>
   );
 }
