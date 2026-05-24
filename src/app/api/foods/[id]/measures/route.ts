@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data, error } = await supabase
     .from('household_measures')
-    .select('id, measure_name, grams, edible_pct')
+    .select('id, measure_name, grams, edible_pct, match_confidence')
     .eq('food_id', Number(id))
     .eq('active', true)
     .order('grams');

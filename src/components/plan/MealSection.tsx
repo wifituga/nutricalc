@@ -197,19 +197,31 @@ function FoodRow({
               }}
             >
               <option value="grams">gramos</option>
-              {measures.map((m) => (
-                <option key={m.id} value={String(m.id)}>
-                  {m.measure_name}
-                </option>
-              ))}
+              {measures.length > 0 && (
+                <optgroup label={`${measures.length} medidas caseras (TAFERA 2016)`}>
+                  {measures.map((m) => (
+                    <option key={m.id} value={String(m.id)}>
+                      {m.measure_name} ({m.grams} g){m.match_confidence === 'medium' ? ' ·' : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
           {selectedMeasure && (
             <p
-              className="text-[10px] mt-1 font-mono"
+              className="text-[10px] mt-1 font-mono flex items-center gap-1"
               style={{ color: 'var(--ink-soft)' }}
             >
-              1 {selectedMeasure.measure_name.toLowerCase()} = {selectedMeasure.grams} g
+              <span>1 {selectedMeasure.measure_name.toLowerCase()} = {selectedMeasure.grams} g</span>
+              {selectedMeasure.match_confidence === 'medium' && (
+                <span
+                  title="Match TAFERA→TPCA aprobado automáticamente — verificar si tienes dudas"
+                  style={{ color: 'var(--warn)' }}
+                >
+                  · auto
+                </span>
+              )}
             </p>
           )}
         </div>

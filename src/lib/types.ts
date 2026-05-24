@@ -114,6 +114,7 @@ export interface HouseholdMeasure {
   measure_name: string;
   grams: number;
   edible_pct: number | null;
+  match_confidence?: 'high' | 'medium';
 }
 
 export interface MealPlanItem {

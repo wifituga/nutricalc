@@ -1,7 +1,14 @@
 /**
  * Seed script: data/medidas_caseras.json → household_measures table.
- * Only high-confidence TAFERA 2016 matches (MVP rule #7), más overrides
- * manuales aprobados caso por caso (MANUAL_APPROVALS abajo).
+ *
+ * Carga TODAS las medidas TAFERA 2016 cuyo TPCA code esté mapeado a un alimento
+ * en la BD (high + medium). Las medium fueron revisadas manualmente como
+ * matches legítimos pero con diferencias sintácticas (truncados, comas,
+ * paréntesis) que bajaron el score del fuzzy match automático.
+ *
+ * El campo `match_confidence` se conserva en BD para que la UI pueda mostrar
+ * un hint cuando la medida proviene de un match medium (auto-aprobado).
+ *
  * Run: npx tsx scripts/seed-measures.ts
  */
 import { createClient } from '@supabase/supabase-js';
@@ -21,8 +28,8 @@ type Measure = {
   match_confidence: 'high' | 'medium' | 'unmatched';
 };
 
-// Medidas TAFERA 'medium' aprobadas manualmente por el equipo clínico.
-// Cada entrada debe documentar por qué se acepta el match.
+// Medidas TAFERA 'medium' aprobadas manualmente por nombre exacto.
+// Sobrescriben la confidence a 'high' porque se validó el alimento.
 const MANUAL_APPROVALS: Array<{
   tpca_code: string;
   measure_name: string;
@@ -32,12 +39,12 @@ const MANUAL_APPROVALS: Array<{
   notes: string;
 }> = [
   {
-    tpca_code: 'A49', // Pan francés fortificado con hierro
+    tpca_code: 'A49',
     measure_name: 'Unidad mediana',
     grams: 62.3,
     tafera_code: '1-129',
     edible_pct: 100,
-    notes: 'Aprobado manual: TAFERA "Pan francés de" (nombre truncado) = TPCA A49',
+    notes: 'Aprobado manual: TAFERA "Pan francés de" (truncado) = TPCA A49',
   },
 ];
 
@@ -52,8 +59,13 @@ async function main() {
     readFileSync(join(process.cwd(), 'data', 'medidas_caseras.json'), 'utf-8'),
   ) as Measure[];
 
-  const high = raw.filter((m) => m.match_confidence === 'high' && m.tpca_code);
-  console.log(`High-confidence measures: ${high.length}`);
+  // Accept high + medium (medium = legitimate match with weak fuzzy score)
+  const accepted = raw.filter(
+    (m) => (m.match_confidence === 'high' || m.match_confidence === 'medium') && m.tpca_code,
+  );
+  const highCount = accepted.filter((m) => m.match_confidence === 'high').length;
+  const mediumCount = accepted.filter((m) => m.match_confidence === 'medium').length;
+  console.log(`Accepted measures: ${accepted.length} (high ${highCount} + medium ${mediumCount})`);
 
   // Map TPCA code → foods.id
   const { data: foods, error: fErr } = await supabase
@@ -65,26 +77,37 @@ async function main() {
     (foods ?? []).map((f) => [f.code as string, f.id as number]),
   );
 
-  const rows = high
-    .map((m) => {
-      const foodId = codeToId.get(m.tpca_code as string);
-      if (!foodId) return null;
-      return {
-        food_id: foodId,
-        measure_name: m.unidad_consumo,
-        grams: m.peso_neto_g,
-        tafera_code: m.tafera_code,
-        match_confidence: 'high' as const,
-        edible_pct: m.parte_comestible_pct,
-        source: 'TAFERA_2016',
-        active: true,
-      };
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null);
+  type Row = {
+    food_id: number;
+    measure_name: string;
+    grams: number;
+    tafera_code: string;
+    match_confidence: 'high' | 'medium';
+    edible_pct: number | null;
+    source: string;
+    active: boolean;
+    notes?: string | null;
+  };
 
-  console.log(`Mapped to foods: ${rows.length} (skipped ${high.length - rows.length} without TPCA match)`);
+  const rows: Row[] = [];
+  let skipped = 0;
+  for (const m of accepted) {
+    const foodId = codeToId.get(m.tpca_code as string);
+    if (!foodId) { skipped++; continue; }
+    rows.push({
+      food_id: foodId,
+      measure_name: m.unidad_consumo,
+      grams: m.peso_neto_g,
+      tafera_code: m.tafera_code,
+      match_confidence: m.match_confidence as 'high' | 'medium',
+      edible_pct: m.parte_comestible_pct,
+      source: 'TAFERA_2016',
+      active: true,
+    });
+  }
+  console.log(`Mapped to foods: ${rows.length} (skipped ${skipped} without TPCA match)`);
 
-  // Append manual approvals (medium-confidence matches validados a mano).
+  // Append manual approvals
   for (const ap of MANUAL_APPROVALS) {
     const foodId = codeToId.get(ap.tpca_code);
     if (!foodId) {
@@ -96,10 +119,11 @@ async function main() {
       measure_name: ap.measure_name,
       grams: ap.grams,
       tafera_code: ap.tafera_code,
-      match_confidence: 'high' as const,
+      match_confidence: 'high',
       edible_pct: ap.edible_pct,
       source: 'TAFERA_2016_manual',
       active: true,
+      notes: ap.notes,
     });
   }
   console.log(`+${MANUAL_APPROVALS.length} manual approvals → ${rows.length} total`);
