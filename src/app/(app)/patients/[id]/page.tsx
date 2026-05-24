@@ -188,17 +188,17 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
           <div className="space-y-2">
             {plans.map((plan) => (
               <Link key={plan.id} href={`/patients/${id}/plans/${plan.id}`}
-                className="block bg-white border rounded-lg p-4 hover:opacity-90 transition-opacity"
+                className="block bg-white border rounded-lg p-4 hover:shadow-md transition-shadow"
                 style={{ borderColor: 'var(--rule)', boxShadow: 'var(--shadow-card)' }}>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <h3 className="font-medium truncate" style={{ color: 'var(--ink)' }}>{plan.name}</h3>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--ink-soft)' }}>
+                    <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--ink-soft)' }}>
                       {plan.plan_date}
                       {plan.calculated_vct ? ` · ${Math.round(plan.calculated_vct)} kcal` : ''}
                     </p>
                   </div>
-                  <ChevronRight size={16} style={{ color: 'var(--ink-soft)' }} />
+                  <ChevronRight size={16} className="shrink-0" style={{ color: 'var(--ink-soft)' }} />
                 </div>
               </Link>
             ))}
@@ -206,7 +206,9 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         ) : (
           <div className="bg-white border border-dashed rounded-lg p-8 text-center"
             style={{ borderColor: 'var(--rule)' }}>
-            <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>Sin planes aún.</p>
+            <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+              Sin planes aún. Crea el primero desde el botón de arriba.
+            </p>
           </div>
         )}
       </section>

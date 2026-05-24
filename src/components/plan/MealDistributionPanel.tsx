@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { AlertTriangle, RotateCcw, CheckCircle2 } from 'lucide-react';
 import type { Food, MealPlanItem } from '@/lib/types';
 import { calculateTotals, MEAL_LABELS } from '@/lib/nutrition';
 import {
@@ -19,6 +19,13 @@ interface Props {
 }
 
 const SLOTS: MealSlot[] = ['desayuno', 'media_manana', 'almuerzo', 'media_tarde', 'cena'];
+const SHORT_LABELS: Record<MealSlot, string> = {
+  desayuno: 'Desayuno',
+  media_manana: 'Media mañana',
+  almuerzo: 'Almuerzo',
+  media_tarde: 'Media tarde',
+  cena: 'Cena',
+};
 
 export default function MealDistributionPanel({ vctKcal, macros, items }: Props) {
   const [dist, setDist] = useState<Record<MealSlot, number>>(MEAL_DISTRIBUTION_DEFAULT);
@@ -52,44 +59,51 @@ export default function MealDistributionPanel({ vctKcal, macros, items }: Props)
       style={{ borderColor: 'var(--rule)', background: 'var(--paper-warm)' }}
     >
       <div
-        className="px-4 py-3 border-b flex items-center justify-between"
+        className="px-4 py-3 border-b flex items-center justify-between gap-2"
         style={{ borderColor: 'var(--rule)' }}
       >
         <p className="font-display text-sm font-semibold" style={{ color: 'var(--ink)' }}>
           Distribución por comida
         </p>
-        <button
-          onClick={() => setDist(MEAL_DISTRIBUTION_DEFAULT)}
-          title="Restaurar 25/10/30/10/25"
-          className="flex items-center gap-1 text-xs px-2 py-1 rounded"
-          style={{ color: 'var(--ink-soft)' }}
-        >
-          <RotateCcw size={11} /> Reset
-        </button>
+        <div className="flex items-center gap-3">
+          <span
+            className="inline-flex items-center gap-1 text-xs font-mono"
+            style={{ color: sum === 100 ? 'var(--ok)' : 'var(--warn)' }}
+          >
+            {sum === 100 && <CheckCircle2 size={12} />} Σ {sum}%
+          </span>
+          <button
+            onClick={() => setDist(MEAL_DISTRIBUTION_DEFAULT)}
+            title="Restaurar 25/10/30/10/25"
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-[color:var(--paper)]"
+            style={{ color: 'var(--ink-soft)' }}
+          >
+            <RotateCcw size={11} /> Reset
+          </button>
+        </div>
       </div>
 
-      <div className="px-4 py-3">
-        <table className="w-full text-xs">
-          <thead>
-            <tr style={{ color: 'var(--ink-soft)' }}>
-              <th className="text-left font-normal pb-1">Comida</th>
-              <th className="text-right font-normal pb-1">%</th>
-              <th className="text-right font-normal pb-1">kcal meta</th>
-              <th className="text-right font-normal pb-1">P · C · G (g)</th>
-              <th className="text-right font-normal pb-1">Actual</th>
-            </tr>
-          </thead>
-          <tbody>
-            {targets.map((t) => {
-              const actual = actualByMeal.get(t.slot)!;
-              const delta = actual.kcal - t.kcal;
-              const off = t.kcal > 0 && Math.abs(delta) / t.kcal > 0.15;
-              return (
-                <tr key={t.slot} className="border-t" style={{ borderColor: 'var(--rule)' }}>
-                  <td className="py-1.5" style={{ color: 'var(--ink)' }}>
-                    {MEAL_LABELS[t.slot]}
-                  </td>
-                  <td className="py-1.5 text-right">
+      <div className="px-3 py-2">
+        <ul className="space-y-1.5">
+          {targets.map((t) => {
+            const actual = actualByMeal.get(t.slot)!;
+            const delta = actual.kcal - t.kcal;
+            const off = t.kcal > 0 && Math.abs(delta) / t.kcal > 0.15;
+            const progress = t.kcal > 0 ? Math.min(100, (actual.kcal / t.kcal) * 100) : 0;
+            return (
+              <li
+                key={t.slot}
+                className="rounded-md bg-white border px-3 py-2"
+                style={{ borderColor: 'var(--rule)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-xs font-medium flex-1 truncate"
+                    style={{ color: 'var(--ink)' }}
+                  >
+                    {SHORT_LABELS[t.slot]}
+                  </span>
+                  <div className="flex items-center gap-1">
                     <input
                       type="number"
                       min="0"
@@ -97,49 +111,55 @@ export default function MealDistributionPanel({ vctKcal, macros, items }: Props)
                       step="1"
                       value={t.pct}
                       onChange={(e) => setPct(t.slot, Number(e.target.value) || 0)}
-                      className="w-12 px-1 py-0.5 rounded border text-right font-mono"
+                      aria-label={`% ${SHORT_LABELS[t.slot]}`}
+                      className="w-12 px-1.5 py-0.5 rounded border text-right font-mono text-xs"
                       style={{
                         background: 'var(--paper)',
                         borderColor: 'var(--rule)',
                         color: 'var(--ink)',
                       }}
                     />
-                  </td>
-                  <td className="py-1.5 text-right font-mono" style={{ color: 'var(--ink)' }}>
-                    {t.kcal}
-                  </td>
-                  <td className="py-1.5 text-right font-mono" style={{ color: 'var(--ink-soft)' }}>
-                    {t.prot_g} · {t.cho_g} · {t.fat_g}
-                  </td>
-                  <td
-                    className="py-1.5 text-right font-mono"
-                    style={{ color: off ? 'var(--warn)' : 'var(--ink-soft)' }}
-                    title={`Actual: ${actual.kcal} kcal · P${actual.prot} C${actual.cho} G${actual.fat}`}
-                  >
-                    {actual.kcal}
+                    <span className="text-xs font-mono" style={{ color: 'var(--ink-soft)' }}>%</span>
+                  </div>
+                </div>
+
+                {/* progress bar */}
+                <div
+                  className="mt-1.5 h-1 rounded-full overflow-hidden"
+                  style={{ background: 'var(--paper-warm)' }}
+                >
+                  <div
+                    className="h-full transition-all"
+                    style={{
+                      width: `${progress}%`,
+                      background: off ? 'var(--warn)' : 'var(--accent)',
+                    }}
+                  />
+                </div>
+
+                <div
+                  className="flex items-center justify-between mt-1 text-[11px] font-mono"
+                  style={{ color: 'var(--ink-soft)' }}
+                >
+                  <span>
+                    {actual.kcal} / {t.kcal} kcal
                     {t.kcal > 0 && (
-                      <span className="ml-1 text-[10px]">
+                      <span
+                        className="ml-1"
+                        style={{ color: off ? 'var(--warn)' : 'var(--ink-soft)' }}
+                      >
                         ({delta >= 0 ? '+' : ''}{delta})
                       </span>
                     )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr className="border-t" style={{ borderColor: 'var(--rule)' }}>
-              <td className="pt-2 font-semibold" style={{ color: 'var(--ink)' }}>Suma</td>
-              <td
-                className="pt-2 text-right font-mono font-semibold"
-                style={{ color: sum === 100 ? 'var(--ok)' : 'var(--warn)' }}
-              >
-                {sum}%
-              </td>
-              <td colSpan={3}></td>
-            </tr>
-          </tfoot>
-        </table>
+                  </span>
+                  <span title={`P ${t.prot_g} g · C ${t.cho_g} g · G ${t.fat_g} g`}>
+                    P{t.prot_g} · C{t.cho_g} · G{t.fat_g}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
 
         {sum !== 100 && (
           <div

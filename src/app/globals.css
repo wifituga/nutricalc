@@ -33,3 +33,40 @@ html, body {
 .alert-warn   { color: var(--warn); }
 .alert-danger { color: var(--danger); }
 .alert-neutral{ color: var(--ink-soft); }
+
+/* A11y: focus visible on interactive elements that opt out of native outline */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Number input chrome */
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Table row hover (apply via .row-hover class) */
+.row-hover { transition: background-color 0.15s ease; }
+.row-hover:hover { background-color: var(--paper-warm); }
+
+/* Smooth scrollbars in sticky panels */
+.scroll-fade {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+.scroll-fade::-webkit-scrollbar { width: 6px; height: 6px; }
+.scroll-fade::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border-radius: 3px;
+}
+.scroll-fade::-webkit-scrollbar-track { background: transparent; }

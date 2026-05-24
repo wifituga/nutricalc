@@ -129,48 +129,54 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
   );
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px] min-h-0">
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px] min-h-0">
       {/* Left: plan builder */}
       <div className="min-w-0 flex flex-col gap-4">
         {/* Header */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <Link href={`/patients/${patient.id}`} className="text-xs hover:underline shrink-0" style={{ color: 'var(--ink-soft)' }}>
+        <div className="flex flex-col gap-3">
+          <Link
+            href={`/patients/${patient.id}`}
+            className="text-xs inline-flex items-center gap-1 hover:underline w-fit"
+            style={{ color: 'var(--ink-soft)' }}
+          >
             ← {patient.full_name}
           </Link>
-          <input
-            value={planName}
-            onChange={(e) => setPlanName(e.target.value)}
-            onBlur={savePlanMeta}
-            className="font-display text-xl font-semibold bg-transparent border-b focus:outline-none min-w-0 flex-1"
-            style={{ color: 'var(--ink)', borderColor: 'var(--rule)' }}
-          />
-          <input
-            type="date"
-            value={planDate}
-            onChange={(e) => setPlanDate(e.target.value)}
-            onBlur={savePlanMeta}
-            className="font-mono text-sm bg-transparent border rounded px-2 py-1 focus:outline-none"
-            style={{ color: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-          />
-          {plan.share_token && (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={planName}
+              onChange={(e) => setPlanName(e.target.value)}
+              onBlur={savePlanMeta}
+              className="font-display text-xl font-semibold bg-transparent border-b min-w-0 flex-1"
+              style={{ color: 'var(--ink)', borderColor: 'var(--rule)' }}
+            />
+            <input
+              type="date"
+              value={planDate}
+              onChange={(e) => setPlanDate(e.target.value)}
+              onBlur={savePlanMeta}
+              className="font-mono text-sm bg-transparent border rounded px-2 py-1.5"
+              style={{ color: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
+            />
+            {plan.share_token && (
+              <a
+                href={`/p/${plan.share_token}`}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors"
+                style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+              >
+                <Eye size={13} /> Modo paciente <ExternalLink size={11} />
+              </a>
+            )}
             <a
-              href={`/p/${plan.share_token}`}
+              href={`/api/plans/${plan.id}/pdf`}
               target="_blank"
-              rel="noopener"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-sm"
-              style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+              className="px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-[color:var(--accent)] hover:text-white transition-colors"
+              style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
             >
-              <Eye size={13} /> Modo paciente <ExternalLink size={11} />
+              Exportar PDF
             </a>
-          )}
-          <a
-            href={`/api/plans/${plan.id}/pdf`}
-            target="_blank"
-            className="px-3 py-1.5 rounded border text-sm font-medium"
-            style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-          >
-            Exportar PDF
-          </a>
+          </div>
         </div>
 
         {/* Meal tabs */}
@@ -219,7 +225,7 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
 
       {/* Right: totals + macros (desktop) */}
       <aside className="hidden lg:block">
-        <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scroll-fade pr-1">
           {panels}
         </div>
       </aside>

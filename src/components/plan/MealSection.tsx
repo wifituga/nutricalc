@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import type { Food, MealPlanItem, HouseholdMeasure } from '@/lib/types';
 
 type Item = MealPlanItem & { foods: Food };
@@ -16,7 +17,7 @@ export default function MealSection({ items, onUpdateItem, onRemove }: Props) {
   if (items.length === 0) {
     return (
       <div
-        className="rounded-lg border border-dashed p-8 text-center"
+        className="rounded-lg border border-dashed p-10 text-center"
         style={{ borderColor: 'var(--rule)' }}
       >
         <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
@@ -27,29 +28,28 @@ export default function MealSection({ items, onUpdateItem, onRemove }: Props) {
   }
 
   return (
-    <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--rule)' }}>
-      <table className="w-full text-sm">
-        <thead style={{ background: 'var(--paper-warm)' }}>
-          <tr>
-            <th className="text-left px-3 py-2 font-medium w-16" style={{ color: 'var(--ink-soft)' }}>Código</th>
-            <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--ink-soft)' }}>Alimento</th>
-            <th className="text-left px-3 py-2 font-medium w-56" style={{ color: 'var(--ink-soft)' }}>Cantidad</th>
-            <th className="text-right px-3 py-2 font-medium w-20" style={{ color: 'var(--ink-soft)' }}>kcal</th>
-            <th className="w-8"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <FoodRow key={item.id} item={item} onUpdateItem={onUpdateItem} onRemove={onRemove} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ul
+      className="rounded-lg border overflow-hidden bg-white"
+      style={{ borderColor: 'var(--rule)', boxShadow: 'var(--shadow-card)' }}
+    >
+      {items.map((item, idx) => (
+        <FoodRow
+          key={item.id}
+          item={item}
+          isFirst={idx === 0}
+          onUpdateItem={onUpdateItem}
+          onRemove={onRemove}
+        />
+      ))}
+    </ul>
   );
 }
 
-function FoodRow({ item, onUpdateItem, onRemove }: {
+function FoodRow({
+  item, isFirst, onUpdateItem, onRemove,
+}: {
   item: Item;
+  isFirst: boolean;
   onUpdateItem: (id: string, patch: Patch) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
 }) {
@@ -60,6 +60,7 @@ function FoodRow({ item, onUpdateItem, onRemove }: {
   const [grams, setGrams] = useState(item.grams);
   const [qty, setQty] = useState(item.household_measure_qty ?? 1);
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +78,9 @@ function FoodRow({ item, onUpdateItem, onRemove }: {
 
   const kcal = item.foods.per_100g.energia_kcal != null
     ? Math.round(item.foods.per_100g.energia_kcal * effectiveGrams / 100)
+    : null;
+  const prot = item.foods.per_100g.proteinas_g != null
+    ? Math.round(item.foods.per_100g.proteinas_g * effectiveGrams / 100 * 10) / 10
     : null;
 
   async function persist(patch: Patch) {
@@ -112,67 +116,131 @@ function FoodRow({ item, onUpdateItem, onRemove }: {
   }
 
   return (
-    <tr className="border-t" style={{ borderColor: 'var(--rule)' }}>
-      <td className="px-3 py-2">
-        <span className="font-mono text-xs" style={{ color: 'var(--accent)' }}>{item.foods.code}</span>
-      </td>
-      <td className="px-3 py-2">
-        <span className="text-sm" style={{ color: 'var(--ink)' }} title={item.foods.name}>
-          {item.foods.name.length > 45 ? item.foods.name.slice(0, 45) + '…' : item.foods.name}
-        </span>
-      </td>
-      <td className="px-3 py-2">
-        <div className="flex items-center gap-1.5">
-          {selectedMeasure ? (
-            <input
-              type="number" min={0} step={0.25} value={qty}
-              onChange={(e) => setQty(Number(e.target.value))}
-              onBlur={onQtyBlur}
-              className="font-mono text-sm w-14 px-2 py-0.5 rounded border focus:outline-none"
-              style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: saving ? 'var(--ink-soft)' : 'var(--ink)' }}
-            />
-          ) : (
-            <input
-              type="number" min={0} step={1} value={grams}
-              onChange={(e) => setGrams(Number(e.target.value))}
-              onBlur={onGramsBlur}
-              className="font-mono text-sm w-16 px-2 py-0.5 rounded border focus:outline-none"
-              style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: saving ? 'var(--ink-soft)' : 'var(--ink)' }}
-            />
-          )}
-          <select
-            value={unit}
-            onChange={(e) => onUnitChange(e.target.value)}
-            className="text-xs px-1 py-0.5 rounded border focus:outline-none max-w-[8.5rem]"
-            style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
-          >
-            <option value="grams">gramos</option>
-            {measures.map((m) => (
-              <option key={m.id} value={String(m.id)}>
-                {m.measure_name} ({m.grams} g)
-              </option>
-            ))}
-          </select>
-          {selectedMeasure && (
-            <span className="text-xs font-mono" style={{ color: 'var(--ink-soft)' }}>
-              = {Math.round(effectiveGrams)} g
+    <li
+      className={`px-4 py-3 ${isFirst ? '' : 'border-t'} row-hover`}
+      style={{ borderColor: 'var(--rule)' }}
+    >
+      <div className="flex items-start gap-3">
+        {/* Left: name + code */}
+        <div className="min-w-0 flex-1 pt-1">
+          <div className="flex items-baseline gap-2">
+            <span
+              className="font-mono text-[11px] shrink-0"
+              style={{ color: 'var(--accent)' }}
+            >
+              {item.foods.code}
             </span>
+            <span
+              className="text-sm leading-snug truncate"
+              style={{ color: 'var(--ink)' }}
+              title={item.foods.name}
+            >
+              {item.foods.name}
+            </span>
+          </div>
+          <div
+            className="flex items-center gap-3 mt-1 text-xs font-mono"
+            style={{ color: 'var(--ink-soft)' }}
+          >
+            <span style={{ color: 'var(--ink)' }}>{kcal ?? '—'} kcal</span>
+            {prot != null && <span>· {prot} g prot</span>}
+            {selectedMeasure && (
+              <span>· {Math.round(effectiveGrams)} g</span>
+            )}
+          </div>
+        </div>
+
+        {/* Center: quantity controls — generous space, vertical stack */}
+        <div className="shrink-0 w-[220px]">
+          <div className="flex items-center gap-1.5">
+            {selectedMeasure ? (
+              <input
+                type="number" min={0} step={0.25} value={qty}
+                onChange={(e) => setQty(Number(e.target.value))}
+                onBlur={onQtyBlur}
+                aria-label="Cantidad"
+                className="font-mono text-sm w-16 px-2 py-1.5 rounded border"
+                style={{
+                  background: 'var(--paper)',
+                  borderColor: 'var(--rule)',
+                  color: saving ? 'var(--ink-soft)' : 'var(--ink)',
+                }}
+              />
+            ) : (
+              <input
+                type="number" min={0} step={1} value={grams}
+                onChange={(e) => setGrams(Number(e.target.value))}
+                onBlur={onGramsBlur}
+                aria-label="Gramos"
+                className="font-mono text-sm w-20 px-2 py-1.5 rounded border"
+                style={{
+                  background: 'var(--paper)',
+                  borderColor: 'var(--rule)',
+                  color: saving ? 'var(--ink-soft)' : 'var(--ink)',
+                }}
+              />
+            )}
+            <select
+              value={unit}
+              onChange={(e) => onUnitChange(e.target.value)}
+              aria-label="Unidad de medida"
+              className="flex-1 text-xs px-2 py-1.5 rounded border min-w-0"
+              style={{
+                background: 'var(--paper)',
+                borderColor: 'var(--rule)',
+                color: 'var(--ink)',
+              }}
+            >
+              <option value="grams">gramos</option>
+              {measures.map((m) => (
+                <option key={m.id} value={String(m.id)}>
+                  {m.measure_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedMeasure && (
+            <p
+              className="text-[10px] mt-1 font-mono"
+              style={{ color: 'var(--ink-soft)' }}
+            >
+              1 {selectedMeasure.measure_name.toLowerCase()} = {selectedMeasure.grams} g
+            </p>
           )}
         </div>
-      </td>
-      <td className="px-3 py-2 text-right font-mono text-sm" style={{ color: 'var(--ink-soft)' }}>
-        {kcal ?? '—'}
-      </td>
-      <td className="px-3 py-2 text-right">
-        <button
-          onClick={() => onRemove(item.id)}
-          className="text-xs hover:opacity-60"
-          style={{ color: 'var(--danger)' }}
-          title="Eliminar"
-        >
-          ×
-        </button>
-      </td>
-    </tr>
+
+        {/* Right: delete */}
+        <div className="shrink-0 pt-1">
+          {confirming ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onRemove(item.id)}
+                className="px-2 py-1 rounded text-xs font-medium"
+                style={{ background: 'var(--danger)', color: 'var(--paper)' }}
+              >
+                Eliminar
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="px-2 py-1 rounded text-xs"
+                style={{ color: 'var(--ink-soft)' }}
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirming(true)}
+              aria-label={`Eliminar ${item.foods.name}`}
+              title="Eliminar"
+              className="p-2 rounded-md transition-colors hover:bg-[color:var(--paper-warm)]"
+              style={{ color: 'var(--ink-soft)' }}
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
+        </div>
+      </div>
+    </li>
   );
 }
