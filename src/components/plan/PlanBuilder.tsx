@@ -14,6 +14,8 @@ import FoodSearch from './FoodSearch';
 import MealSection from './MealSection';
 import TotalsPanel from './TotalsPanel';
 import MacroPanel from './MacroPanel';
+import MealDistributionPanel from './MealDistributionPanel';
+import { calculateMacroDistribution, type MacroMode } from '@/lib/calculations/macroDistribution';
 
 interface Props {
   plan: MealPlan;
@@ -31,6 +33,9 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
   const [planName, setPlanName] = useState(plan.name);
   const [planDate, setPlanDate] = useState(plan.plan_date);
   const [saving, setSaving] = useState(false);
+  const [macroMode, setMacroMode] = useState<MacroMode>('amdr_auto');
+  const [macroManual, setMacroManual] = useState({ cho: 55, prot: 20, fat: 25 });
+  const [proteinFactor, setProteinFactor] = useState(1.0);
 
   const foodsMap = new Map<number, Food>(items.map((i) => [i.food_id, i.foods]));
   const totals = calculateTotals(items, foodsMap);
@@ -92,11 +97,33 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
     setSaving(false);
   }
 
+  const macroResult = vct && ageYears != null
+    ? calculateMacroDistribution(vct.vct, macroMode, {
+        ageYears,
+        weightKg: vct.weightUsed,
+        proteinFactor,
+        manualPct: macroManual,
+      })
+    : null;
+
   const panels = (
     <div className="flex flex-col gap-4">
       <TotalsPanel totals={totals} targets={targets} vct={vct} iron={iron} />
-      {vct && ageYears != null && (
-        <MacroPanel vctKcal={vct.vct} ageYears={ageYears} weightKg={vct.weightUsed} />
+      {vct && macroResult && (
+        <MacroPanel
+          vctKcal={vct.vct}
+          weightKg={vct.weightUsed}
+          mode={macroMode}
+          setMode={setMacroMode}
+          manual={macroManual}
+          setManual={setMacroManual}
+          proteinFactor={proteinFactor}
+          setProteinFactor={setProteinFactor}
+          result={macroResult}
+        />
+      )}
+      {vct && macroResult && (
+        <MealDistributionPanel vctKcal={vct.vct} macros={macroResult} items={items} />
       )}
     </div>
   );

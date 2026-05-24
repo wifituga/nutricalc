@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import {
-  calculateMacroDistribution,
-  type MacroMode,
-} from '@/lib/calculations/macroDistribution';
+import type { MacroBreakdown, MacroMode } from '@/lib/calculations/macroDistribution';
 
 interface Props {
   vctKcal: number;
-  ageYears: number;
   weightKg: number;
+  mode: MacroMode;
+  setMode: (m: MacroMode) => void;
+  manual: { cho: number; prot: number; fat: number };
+  setManual: (m: { cho: number; prot: number; fat: number }) => void;
+  proteinFactor: number;
+  setProteinFactor: (f: number) => void;
+  result: MacroBreakdown;
 }
 
 const MODES: { value: MacroMode; label: string }[] = [
@@ -19,17 +21,17 @@ const MODES: { value: MacroMode; label: string }[] = [
   { value: 'from_protein_g_per_kg', label: 'Desde proteína g/kg' },
 ];
 
-export default function MacroPanel({ vctKcal, ageYears, weightKg }: Props) {
-  const [mode, setMode] = useState<MacroMode>('amdr_auto');
-  const [manual, setManual] = useState({ cho: 55, prot: 20, fat: 25 });
-  const [proteinFactor, setProteinFactor] = useState(1.0);
-
-  const result = calculateMacroDistribution(vctKcal, mode, {
-    ageYears,
-    weightKg,
-    proteinFactor,
-    manualPct: manual,
-  });
+export default function MacroPanel({
+  vctKcal,
+  weightKg,
+  mode,
+  setMode,
+  manual,
+  setManual,
+  proteinFactor,
+  setProteinFactor,
+  result,
+}: Props) {
 
   return (
     <div
@@ -65,14 +67,38 @@ export default function MacroPanel({ vctKcal, ageYears, weightKg }: Props) {
             <label className="block text-xs mb-1" style={{ color: 'var(--ink-soft)' }}>
               Factor proteico (g/kg) · peso {weightKg.toFixed(1)} kg
             </label>
-            <input
-              type="number"
-              step="0.1"
-              value={proteinFactor}
-              onChange={(e) => setProteinFactor(Number(e.target.value) || 0)}
-              className="w-24 px-2 py-1 rounded border text-sm font-mono"
-              style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
-            />
+            <div className="flex flex-wrap gap-1 mb-1">
+              {[0.8, 1.0, 1.2, 1.5].map((f) => {
+                const active = Math.abs(proteinFactor - f) < 0.01;
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setProteinFactor(f)}
+                    className="px-2 py-1 rounded text-xs font-mono"
+                    style={{
+                      background: active ? 'var(--accent)' : 'transparent',
+                      color: active ? 'var(--paper)' : 'var(--ink-soft)',
+                      border: `1px solid ${active ? 'var(--accent)' : 'var(--rule)'}`,
+                    }}
+                    title={`${(f * weightKg).toFixed(1)} g proteína/día`}
+                  >
+                    {f.toFixed(1)}
+                  </button>
+                );
+              })}
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                value={proteinFactor}
+                onChange={(e) => setProteinFactor(Number(e.target.value) || 0)}
+                className="w-16 px-2 py-1 rounded border text-xs font-mono"
+                style={{ background: 'var(--paper)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
+              />
+            </div>
+            <p className="text-xs font-mono" style={{ color: 'var(--ink-soft)' }}>
+              = {(proteinFactor * weightKg).toFixed(1)} g proteína/día
+            </p>
           </div>
         )}
 
