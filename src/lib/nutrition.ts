@@ -15,7 +15,28 @@ export function resolveGrams(
   return item.grams;
 }
 
-export function calculateTotals(items: MealPlanItem[], foods: Map<number, Food>): NutrientTotals {
+/**
+ * Grams converted to RAW equivalent for nutrition calculation.
+ * If item has cooking_factor_id, the registered grams are COOKED weight and we
+ * apply factor → raw grams (TPCA composition assumes raw weight).
+ * Formula: peso_crudo = peso_cocido × factor
+ */
+export function nutritionalGrams(
+  item: Pick<MealPlanItem, 'grams' | 'cooking_factor_id'>,
+  factors?: Map<string, number>,
+): number {
+  if (item.cooking_factor_id && factors) {
+    const f = factors.get(item.cooking_factor_id);
+    if (f != null) return item.grams * f;
+  }
+  return item.grams;
+}
+
+export function calculateTotals(
+  items: MealPlanItem[],
+  foods: Map<number, Food>,
+  cookingFactors?: Map<string, number>,
+): NutrientTotals {
   const keys = Object.keys(NUTRIENT_LABELS) as (keyof FoodNutrients)[];
   const totals: Partial<Record<keyof FoodNutrients, NutrientTotal>> = {};
 
@@ -30,7 +51,8 @@ export function calculateTotals(items: MealPlanItem[], foods: Map<number, Food>)
       if (v == null) {
         withNull++;
       } else {
-        value += v * (item.grams / 100);
+        const g = nutritionalGrams(item, cookingFactors);
+        value += v * (g / 100);
         withData++;
       }
     }

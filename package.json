@@ -9,7 +9,8 @@
     "seed:foods": "tsx scripts/seed-foods.ts",
     "seed:dris": "tsx scripts/seed-dris.ts",
     "seed:measures": "tsx scripts/seed-measures.ts",
-    "seed": "tsx scripts/seed-foods.ts && tsx scripts/seed-dris.ts && tsx scripts/seed-measures.ts",
+    "seed:cooking": "tsx scripts/seed-cooking-factors.ts",
+    "seed": "tsx scripts/seed-foods.ts && tsx scripts/seed-dris.ts && tsx scripts/seed-measures.ts && tsx scripts/seed-cooking-factors.ts",
     "test": "vitest run"
   },
   "dependencies": {

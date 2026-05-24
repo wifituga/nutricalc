@@ -117,6 +117,15 @@ export interface HouseholdMeasure {
   match_confidence?: 'high' | 'medium';
 }
 
+export interface CookingFactor {
+  id: string;
+  food_name_raw: string;
+  cooking_method: string;
+  factor: number;
+  from_1985: boolean;
+  notes: string | null;
+}
+
 export interface MealPlanItem {
   id: string;
   meal_plan_id: string;
@@ -125,6 +134,7 @@ export interface MealPlanItem {
   grams: number;
   household_measure_id: number | null;
   household_measure_qty: number | null;
+  cooking_factor_id: string | null;
   position: number;
   notes: string | null;
   food?: Food;

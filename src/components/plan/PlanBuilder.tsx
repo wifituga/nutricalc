@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useTransition } from 'react';
+import { useState, useCallback, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
@@ -40,8 +40,33 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
   const [macroManual, setMacroManual] = useState({ cho: 55, prot: 20, fat: 25 });
   const [proteinFactor, setProteinFactor] = useState(1.0);
 
+  const [cookingFactorsMap, setCookingFactorsMap] = useState<Map<string, number>>(new Map());
+
+  // Fetch factors actually referenced by items so totals stay accurate
+  useEffect(() => {
+    const ids = items.map((i) => i.cooking_factor_id).filter((x): x is string => !!x);
+    if (ids.length === 0) {
+      setCookingFactorsMap(new Map());
+      return;
+    }
+    const uniqFoodIds = [...new Set(items.filter((i) => i.cooking_factor_id).map((i) => i.food_id))];
+    Promise.all(
+      uniqFoodIds.map((fid) =>
+        fetch(`/api/foods/${fid}/cooking-factors`).then((r) => (r.ok ? r.json() : { factors: [] })),
+      ),
+    ).then((results) => {
+      const map = new Map<string, number>();
+      for (const r of results) {
+        for (const f of (r.factors ?? []) as { id: string; factor: number }[]) {
+          map.set(f.id, f.factor);
+        }
+      }
+      setCookingFactorsMap(map);
+    });
+  }, [items]);
+
   const foodsMap = new Map<number, Food>(items.map((i) => [i.food_id, i.foods]));
-  const totals = calculateTotals(items, foodsMap);
+  const totals = calculateTotals(items, foodsMap, cookingFactorsMap);
 
   const ageYears = patient.birth_date ? ageInYears(new Date(patient.birth_date)) : null;
   const showIron = shouldShowAbsorbableIron({
@@ -51,7 +76,10 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
     comorbidities: patient.comorbidities,
   });
   const iron = showIron
-    ? calculateAbsorbableIron(items.map((i) => ({ food: i.foods, grams: i.grams })))
+    ? calculateAbsorbableIron(items.map((i) => {
+        const f = i.cooking_factor_id ? cookingFactorsMap.get(i.cooking_factor_id) ?? 1 : 1;
+        return { food: i.foods, grams: i.grams * f };
+      }))
     : null;
 
   const addFood = useCallback(async (food: Food) => {
@@ -73,7 +101,12 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
 
   const updateItem = useCallback(async (
     itemId: string,
-    patch: { grams: number; household_measure_id?: number | null; household_measure_qty?: number | null },
+    patch: {
+      grams?: number;
+      household_measure_id?: number | null;
+      household_measure_qty?: number | null;
+      cooking_factor_id?: string | null;
+    },
   ) => {
     const res = await fetch(`/api/plans/items/${itemId}`, {
       method: 'PATCH',

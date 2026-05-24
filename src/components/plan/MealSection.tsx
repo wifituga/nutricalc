@@ -1,12 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Trash2, Shuffle } from 'lucide-react';
-import type { Food, MealPlanItem, HouseholdMeasure } from '@/lib/types';
+import { Trash2, Shuffle, Flame } from 'lucide-react';
+import type { Food, MealPlanItem, HouseholdMeasure, CookingFactor } from '@/lib/types';
 import SubstitutesPopover from './SubstitutesPopover';
 
 type Item = MealPlanItem & { foods: Food };
-type Patch = { grams: number; household_measure_id?: number | null; household_measure_qty?: number | null };
+type Patch = {
+  grams?: number;
+  household_measure_id?: number | null;
+  household_measure_qty?: number | null;
+  cooking_factor_id?: string | null;
+};
 
 interface Props {
   items: Item[];
@@ -15,7 +20,53 @@ interface Props {
   onSubstitute?: (itemId: string, newFoodId: number) => Promise<void>;
 }
 
+function computeSummary(items: Item[], factorsById: Map<string, number>) {
+  let kcal = 0, prot = 0, fat = 0, cho = 0, grams = 0;
+  for (const it of items) {
+    grams += it.grams;
+    const factor = it.cooking_factor_id ? factorsById.get(it.cooking_factor_id) ?? 1 : 1;
+    const nutrG = it.grams * factor;
+    const p = it.foods.per_100g;
+    const k = p.energia_kcal != null ? p.energia_kcal * nutrG / 100 : 0;
+    const pr = p.proteinas_g != null ? p.proteinas_g * nutrG / 100 : 0;
+    const f = p.grasa_g != null ? p.grasa_g * nutrG / 100 : 0;
+    const c = p.carbohidratos_disponibles_g != null ? p.carbohidratos_disponibles_g * nutrG / 100 : 0;
+    kcal += k; prot += pr; fat += f; cho += c;
+  }
+  return {
+    kcal: Math.round(kcal),
+    prot: Math.round(prot * 10) / 10,
+    fat: Math.round(fat * 10) / 10,
+    cho: Math.round(cho * 10) / 10,
+    grams: Math.round(grams),
+  };
+}
+
 export default function MealSection({ items, onUpdateItem, onRemove, onSubstitute }: Props) {
+  // Fetch all factors used by items so subtotal can apply them
+  const [factorsById, setFactorsById] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    const ids = items.map((i) => i.cooking_factor_id).filter((x): x is string => !!x);
+    if (ids.length === 0) {
+      setFactorsById(new Map());
+      return;
+    }
+    // Use a tiny inline endpoint via the per-food query (cooking-factors). Aggregate from items' foods.
+    // Simpler: do one fetch per unique food. They are usually few.
+    const uniqFoodIds = [...new Set(items.filter((i) => i.cooking_factor_id).map((i) => i.food_id))];
+    Promise.all(uniqFoodIds.map((fid) =>
+      fetch(`/api/foods/${fid}/cooking-factors`).then((r) => r.ok ? r.json() : { factors: [] }),
+    )).then((results) => {
+      const map = new Map<string, number>();
+      for (const r of results) {
+        for (const f of (r.factors ?? []) as CookingFactor[]) {
+          map.set(f.id, f.factor);
+        }
+      }
+      setFactorsById(map);
+    });
+  }, [items]);
+
   if (items.length === 0) {
     return (
       <div
@@ -29,22 +80,52 @@ export default function MealSection({ items, onUpdateItem, onRemove, onSubstitut
     );
   }
 
+  const summary = computeSummary(items, factorsById);
+
   return (
-    <ul
+    <div
       className="rounded-lg border overflow-hidden bg-white"
       style={{ borderColor: 'var(--rule)', boxShadow: 'var(--shadow-card)' }}
     >
-      {items.map((item, idx) => (
-        <FoodRow
-          key={item.id}
-          item={item}
-          isFirst={idx === 0}
-          onUpdateItem={onUpdateItem}
-          onRemove={onRemove}
-          onSubstitute={onSubstitute}
-        />
-      ))}
-    </ul>
+      <ul>
+        {items.map((item, idx) => (
+          <FoodRow
+            key={item.id}
+            item={item}
+            isFirst={idx === 0}
+            onUpdateItem={onUpdateItem}
+            onRemove={onRemove}
+            onSubstitute={onSubstitute}
+          />
+        ))}
+      </ul>
+      <div
+        className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 border-t text-xs font-mono"
+        style={{ borderColor: 'var(--rule)', background: 'var(--paper-warm)' }}
+      >
+        <span style={{ color: 'var(--ink-soft)' }}>
+          Subtotal {items.length} {items.length === 1 ? 'alimento' : 'alimentos'}
+        </span>
+        <SummaryStat label="kcal" value={summary.kcal} accent />
+        <SummaryStat label="prot" value={`${summary.prot} g`} />
+        <SummaryStat label="grasa" value={`${summary.fat} g`} />
+        <SummaryStat label="cho" value={`${summary.cho} g`} />
+        <SummaryStat label="peso" value={`${summary.grams} g`} />
+      </div>
+    </div>
+  );
+}
+
+function SummaryStat({ label, value, accent }: { label: string; value: number | string; accent?: boolean }) {
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--ink-soft)' }}>
+        {label}
+      </span>
+      <span style={{ color: accent ? 'var(--ink)' : 'var(--ink)', fontWeight: accent ? 600 : 400 }}>
+        {value}
+      </span>
+    </span>
   );
 }
 
@@ -58,11 +139,14 @@ function FoodRow({
   onSubstitute?: (id: string, newFoodId: number) => Promise<void>;
 }) {
   const [measures, setMeasures] = useState<HouseholdMeasure[]>([]);
+  const [factors, setFactors] = useState<CookingFactor[]>([]);
+  const [factorsFallback, setFactorsFallback] = useState(false);
   const [unit, setUnit] = useState<string>(
     item.household_measure_id ? String(item.household_measure_id) : 'grams',
   );
   const [grams, setGrams] = useState(item.grams);
   const [qty, setQty] = useState(item.household_measure_qty ?? 1);
+  const [factorId, setFactorId] = useState<string | null>(item.cooking_factor_id);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [showSubstitutes, setShowSubstitutes] = useState(false);
@@ -73,6 +157,14 @@ function FoodRow({
       .then((r) => r.ok ? r.json() : { measures: [] })
       .then((d) => { if (!cancelled) setMeasures(d.measures ?? []); })
       .catch(() => {});
+    fetch(`/api/foods/${item.food_id}/cooking-factors`)
+      .then((r) => r.ok ? r.json() : { factors: [], fallback: false })
+      .then((d) => {
+        if (cancelled) return;
+        setFactors(d.factors ?? []);
+        setFactorsFallback(!!d.fallback);
+      })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [item.food_id]);
 
@@ -80,12 +172,14 @@ function FoodRow({
     ? measures.find((m) => String(m.id) === unit)
     : undefined;
   const effectiveGrams = selectedMeasure ? selectedMeasure.grams * qty : grams;
+  const selectedFactor = factorId ? factors.find((f) => f.id === factorId) : null;
+  const nutritionalG = selectedFactor ? effectiveGrams * selectedFactor.factor : effectiveGrams;
 
   const kcal = item.foods.per_100g.energia_kcal != null
-    ? Math.round(item.foods.per_100g.energia_kcal * effectiveGrams / 100)
+    ? Math.round(item.foods.per_100g.energia_kcal * nutritionalG / 100)
     : null;
   const prot = item.foods.per_100g.proteinas_g != null
-    ? Math.round(item.foods.per_100g.proteinas_g * effectiveGrams / 100 * 10) / 10
+    ? Math.round(item.foods.per_100g.proteinas_g * nutritionalG / 100 * 10) / 10
     : null;
 
   async function persist(patch: Patch) {
@@ -120,6 +214,12 @@ function FoodRow({
     }
   }
 
+  function onFactorChange(value: string) {
+    const newId = value === '' ? null : value;
+    setFactorId(newId);
+    persist({ cooking_factor_id: newId });
+  }
+
   return (
     <li
       className={`px-4 py-3 ${isFirst ? '' : 'border-t'} row-hover`}
@@ -152,7 +252,42 @@ function FoodRow({
             {selectedMeasure && (
               <span>· {Math.round(effectiveGrams)} g</span>
             )}
+            {selectedFactor && (
+              <span style={{ color: 'var(--warn)' }}>
+                · cocido ({selectedFactor.cooking_method.toLowerCase()}, ×{selectedFactor.factor})
+              </span>
+            )}
           </div>
+          {factors.length > 0 && (
+            <div className="flex items-center gap-2 mt-1.5">
+              <Flame size={11} style={{ color: factorId ? 'var(--warn)' : 'var(--ink-soft)' }} />
+              <select
+                value={factorId ?? ''}
+                onChange={(e) => onFactorChange(e.target.value)}
+                aria-label="Estado y método de cocción"
+                className="text-[11px] px-1.5 py-0.5 rounded border max-w-full min-w-0"
+                style={{
+                  background: factorId ? '#fdf6e3' : 'var(--paper)',
+                  borderColor: factorId ? 'var(--warn)' : 'var(--rule)',
+                  color: 'var(--ink)',
+                }}
+                title={
+                  factorsFallback
+                    ? 'No hay factor directo para este alimento; mostrando opciones del mismo grupo'
+                    : 'El peso registrado es del alimento cocido; aplicará factor TAFERA 2016 para convertir a crudo'
+                }
+              >
+                <option value="">Peso en crudo (sin factor)</option>
+                <optgroup label={factorsFallback ? 'Factores del grupo (referenciales)' : 'Factores TAFERA 2016'}>
+                  {factors.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      Cocido — {f.cooking_method}{factorsFallback ? ` · ${f.food_name_raw}` : ''} (×{f.factor})
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Center: quantity controls — generous space, vertical stack */}
