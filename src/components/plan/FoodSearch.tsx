@@ -19,6 +19,7 @@ const GROUPS = [
   { letter: 'Q', label: 'Q · Infantiles' },
   { letter: 'T', label: 'T · Leguminosas' },
   { letter: 'U', label: 'U · Tubérculos' },
+  { letter: 'S', label: 'S · Preparaciones' },
 ];
 
 function highlight(text: string, q: string) {
@@ -161,6 +162,19 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
                 <span className="text-sm truncate" style={{ color: 'var(--ink)' }} title={food.name}>
                   {highlight(food.name, query)}
                 </span>
+                {food.group_letter === 'S' && (
+                  <span
+                    className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                    style={{
+                      background: 'var(--paper-warm)',
+                      color: 'var(--accent)',
+                      border: '1px solid var(--rule)',
+                    }}
+                    title="Preparación completa (TPCA 2025 grupo S)"
+                  >
+                    prep
+                  </span>
+                )}
                 <span className="text-xs ml-auto shrink-0" style={{ color: 'var(--ink-soft)' }}>
                   {food.per_100g.energia_kcal != null
                     ? `${food.per_100g.energia_kcal} kcal`

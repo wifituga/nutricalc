@@ -8,22 +8,24 @@ export async function GET(request: NextRequest) {
   const group = (searchParams.get('group') ?? '').trim();
   const limit = Math.min(Number(searchParams.get('limit') ?? 20), 100);
 
-  // TPCA code shortcut: exact ("A49", "a 49") or prefix ("A4", "T")
-  const codeMatch = q.match(/^([A-Za-z])\s*(\d*)$/);
+  // TPCA code shortcut: exact ("A49", "SE1"), prefix ("A4", "SE1_") or single-letter group ("A", "S")
+  // Single-letter groups: A-L, Q, T, U
+  // Two-letter (group S subcodes): SE, SS, SR, SB, SP
+  const codeMatch = q.match(/^([A-Za-z]{1,2})\s*([0-9_]*)$/);
   if (codeMatch) {
     const letter = codeMatch[1].toUpperCase();
-    const digits = codeMatch[2];
-    const code = `${letter}${digits}`;
+    const digitsRaw = codeMatch[2];
+    const code = `${letter}${digitsRaw}`;
     const codeQuery = supabase
       .from('foods')
       .select('id, code, group_letter, group_name, name, per_100g')
       .eq('active', true)
       .order('code')
       .limit(limit);
-    // Exact for full code, prefix for partial
-    const { data } = digits
+    // If we have digits → prefix search on code; otherwise filter by group letter
+    const { data } = digitsRaw
       ? await codeQuery.ilike('code', `${code}%`)
-      : await codeQuery.eq('group_letter', letter);
+      : await codeQuery.eq('group_letter', letter[0]);
     if (data && data.length) {
       return NextResponse.json({ data, count: data.length, limit, offset: 0 });
     }
