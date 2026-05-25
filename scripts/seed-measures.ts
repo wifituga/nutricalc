@@ -67,14 +67,24 @@ async function main() {
   const mediumCount = accepted.filter((m) => m.match_confidence === 'medium').length;
   console.log(`Accepted measures: ${accepted.length} (high ${highCount} + medium ${mediumCount})`);
 
-  // Map TPCA code → foods.id
-  const { data: foods, error: fErr } = await supabase
-    .from('foods')
-    .select('id, code');
-  if (fErr) throw new Error(`Foods lookup failed: ${fErr.message}`);
+  // Map TPCA code → foods.id. Supabase enforces a server-side max of 1000 rows
+  // per request, so we paginate explicitly to capture all foods (>1000 now).
+  const foods: { id: number; code: string }[] = [];
+  const PAGE = 500;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('foods')
+      .select('id, code')
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`Foods lookup failed at offset ${from}: ${error.message}`);
+    if (!data || data.length === 0) break;
+    foods.push(...(data as { id: number; code: string }[]));
+    if (data.length < PAGE) break;
+  }
+  console.log(`Foods loaded: ${foods.length}`);
 
   const codeToId = new Map<string, number>(
-    (foods ?? []).map((f) => [f.code as string, f.id as number]),
+    foods.map((f) => [f.code as string, f.id as number]),
   );
 
   type Row = {
@@ -128,20 +138,32 @@ async function main() {
   }
   console.log(`+${MANUAL_APPROVALS.length} manual approvals → ${rows.length} total`);
 
+  // Dedup by upsert key (food_id, measure_name, tafera_code): keep first occurrence
+  const seen = new Set<string>();
+  const dedupedRows: typeof rows = [];
+  let dups = 0;
+  for (const r of rows) {
+    const k = `${r.food_id}|${r.measure_name}|${r.tafera_code}`;
+    if (seen.has(k)) { dups++; continue; }
+    seen.add(k);
+    dedupedRows.push(r);
+  }
+  if (dups > 0) console.log(`Deduped ${dups} duplicate rows within batch → ${dedupedRows.length} unique`);
+
   const BATCH = 200;
   let done = 0;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const batch = rows.slice(i, i + BATCH);
+  for (let i = 0; i < dedupedRows.length; i += BATCH) {
+    const batch = dedupedRows.slice(i, i + BATCH);
     const { error } = await supabase
       .from('household_measures')
       .upsert(batch, { onConflict: 'food_id,measure_name,tafera_code', ignoreDuplicates: false });
     if (error) throw new Error(`Batch ${i / BATCH + 1} failed: ${error.message}`);
     done += batch.length;
-    console.log(`  ${done}/${rows.length}`);
+    console.log(`  ${done}/${dedupedRows.length}`);
   }
 
-  const distinctFoods = new Set(rows.map((r) => r.food_id)).size;
-  console.log(`Seeded ${rows.length} household measures across ${distinctFoods} foods`);
+  const distinctFoods = new Set(dedupedRows.map((r) => r.food_id)).size;
+  console.log(`Seeded ${dedupedRows.length} household measures across ${distinctFoods} foods`);
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });

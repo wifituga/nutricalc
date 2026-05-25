@@ -52,10 +52,20 @@ async function main() {
     readFileSync(join(process.cwd(), 'data', 'cooking_factors.json'), 'utf-8'),
   ) as FactorsFile;
 
-  const { data: foods, error: fErr } = await supabase
-    .from('foods')
-    .select('id, name, group_letter');
-  if (fErr) throw new Error(`Foods lookup failed: ${fErr.message}`);
+  // Paginated foods load (Supabase server limit is 1000 rows/req)
+  const foods: { id: number; name: string; group_letter: string }[] = [];
+  const PAGE = 500;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('foods')
+      .select('id, name, group_letter')
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`Foods lookup failed at offset ${from}: ${error.message}`);
+    if (!data || data.length === 0) break;
+    foods.push(...(data as typeof foods));
+    if (data.length < PAGE) break;
+  }
+  console.log(`Foods loaded: ${foods.length}`);
 
   // Group_name (TAFERA) → group_letter (TPCA)
   const groupToLetter: Record<string, string> = {
@@ -83,7 +93,7 @@ async function main() {
   // First pass: score-best mapping per entry
   const provisional: Row[] = raw.factors.map((f) => {
     const letter = groupToLetter[f.group];
-    const candidates = (foods ?? []).filter((x) => x.group_letter === letter);
+    const candidates = foods.filter((x) => x.group_letter === letter);
     let best: { id: number; name: string; s: number } | null = null;
     for (const c of candidates) {
       const s = score(f.food, c.name as string);
