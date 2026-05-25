@@ -26,7 +26,7 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-4xl">
       <header className="mb-6">
-        <h1 className="font-display text-3xl font-medium" style={{ color: 'var(--ink)' }}>
+        <h1 className="font-display text-2xl sm:text-3xl font-medium" style={{ color: 'var(--ink)' }}>
           Inicio
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--ink-soft)' }}>

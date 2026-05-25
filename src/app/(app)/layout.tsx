@@ -22,7 +22,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         userName={nutritionist?.full_name ?? user.email ?? ''}
         clinicName={(nutritionist?.clinics as unknown as { name: string } | null)?.name ?? ''}
       />
-      <main className="flex-1 overflow-y-auto p-6" style={{ background: 'var(--paper)' }}>
+      <main
+        className="flex-1 overflow-y-auto p-4 sm:p-6 pt-16 md:pt-6"
+        style={{ background: 'var(--paper)' }}
+      >
         {children}
       </main>
       <CommandPalette />

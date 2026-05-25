@@ -51,13 +51,13 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <header className="flex items-start justify-between gap-4 pb-4 border-b" style={{ borderColor: 'var(--rule)' }}>
+      <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-4 border-b" style={{ borderColor: 'var(--rule)' }}>
         <div className="min-w-0 flex-1">
           <Link href="/patients" className="text-xs inline-flex items-center gap-1 mb-2 hover:underline"
             style={{ color: 'var(--ink-soft)' }}>
             <ArrowLeft size={12} /> Volver a pacientes
           </Link>
-          <h1 className="font-display text-3xl font-medium leading-tight truncate" style={{ color: 'var(--ink)' }}>
+          <h1 className="font-display text-2xl sm:text-3xl font-medium leading-tight break-words" style={{ color: 'var(--ink)' }}>
             {patient.full_name}
           </h1>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-sm" style={{ color: 'var(--ink-soft)' }}>
@@ -82,7 +82,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
       {/* CTA crear plan */}
       {vct && (
-        <section className="rounded-lg p-5 flex items-center justify-between"
+        <section className="rounded-lg p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
           style={{ background: 'var(--accent)', color: 'var(--paper)', boxShadow: 'var(--shadow-card)' }}>
           <div>
             <h2 className="font-display text-lg font-medium mb-1">¿Listo para armar un plan?</h2>

@@ -178,31 +178,35 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
       })
     : null;
 
-  const panels = (
+  const macroPanel = vct && macroResult ? (
+    <MacroPanel
+      vctKcal={vct.vct}
+      weightKg={vct.weightUsed}
+      mode={macroMode}
+      setMode={setMacroMode}
+      manual={macroManual}
+      setManual={setMacroManual}
+      proteinFactor={proteinFactor}
+      setProteinFactor={setProteinFactor}
+      result={macroResult}
+    />
+  ) : null;
+  const distributionPanel = vct && macroResult ? (
+    <MealDistributionPanel vctKcal={vct.vct} macros={macroResult} items={items} />
+  ) : null;
+
+  // Mobile-only: all panels stacked inside drawer
+  const allPanelsForDrawer = (
     <div className="flex flex-col gap-4">
       <TotalsPanel totals={totals} targets={targets} vct={vct} iron={iron} />
-      {vct && macroResult && (
-        <MacroPanel
-          vctKcal={vct.vct}
-          weightKg={vct.weightUsed}
-          mode={macroMode}
-          setMode={setMacroMode}
-          manual={macroManual}
-          setManual={setMacroManual}
-          proteinFactor={proteinFactor}
-          setProteinFactor={setProteinFactor}
-          result={macroResult}
-        />
-      )}
-      {vct && macroResult && (
-        <MealDistributionPanel vctKcal={vct.vct} macros={macroResult} items={items} />
-      )}
+      {macroPanel}
+      {distributionPanel}
     </div>
   );
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px] min-h-0">
-      {/* Left: plan builder */}
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] min-h-0">
+      {/* Left column: builder + macros/distribution at the bottom */}
       <div className="min-w-0 flex flex-col gap-4">
         {/* Header */}
         <div className="flex flex-col gap-3">
@@ -213,7 +217,7 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
           >
             ← {patient.full_name}
           </Link>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
             <input
               value={planName}
               onChange={(e) => setPlanName(e.target.value)}
@@ -226,52 +230,57 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
               value={planDate}
               onChange={(e) => setPlanDate(e.target.value)}
               onBlur={savePlanMeta}
-              className="font-mono text-sm bg-transparent border rounded px-2 py-1.5"
+              className="font-mono text-sm bg-transparent border rounded px-2 py-1.5 w-full sm:w-auto"
               style={{ color: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
             />
-            {plan.share_token && (
+            <div className="flex flex-wrap items-center gap-2">
+              {plan.share_token && (
+                <a
+                  href={`/p/${plan.share_token}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors"
+                  style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+                >
+                  <Eye size={13} /> <span className="hidden sm:inline">Modo paciente</span><span className="sm:hidden">Paciente</span> <ExternalLink size={11} />
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={duplicatePlan}
+                disabled={duplicating}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors disabled:opacity-50"
+                style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+                title="Crear copia con los mismos alimentos en otra fecha"
+              >
+                <Copy size={13} /> {duplicating ? 'Duplicando…' : 'Duplicar'}
+              </button>
               <a
-                href={`/p/${plan.share_token}`}
+                href={`/api/plans/${plan.id}/shopping-list`}
                 target="_blank"
-                rel="noopener"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors"
                 style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+                title="Lista de compras agregada"
               >
-                <Eye size={13} /> Modo paciente <ExternalLink size={11} />
+                <ShoppingBag size={13} /> Compras
               </a>
-            )}
-            <button
-              type="button"
-              onClick={duplicatePlan}
-              disabled={duplicating}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors disabled:opacity-50"
-              style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
-              title="Crear copia con los mismos alimentos en otra fecha"
-            >
-              <Copy size={13} /> {duplicating ? 'Duplicando…' : 'Duplicar'}
-            </button>
-            <a
-              href={`/api/plans/${plan.id}/shopping-list`}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors"
-              style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
-              title="Lista de compras agregada"
-            >
-              <ShoppingBag size={13} /> Compras
-            </a>
-            <a
-              href={`/api/plans/${plan.id}/pdf`}
-              target="_blank"
-              className="px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-[color:var(--accent)] hover:text-white transition-colors"
-              style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-            >
-              Exportar PDF
-            </a>
+              <a
+                href={`/api/plans/${plan.id}/pdf`}
+                target="_blank"
+                className="px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-[color:var(--accent)] hover:text-white transition-colors"
+                style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+              >
+                PDF
+              </a>
+            </div>
           </div>
         </div>
 
         {/* Meal tabs */}
-        <div className="flex gap-1 border-b" style={{ borderColor: 'var(--rule)' }}>
+        <div
+          className="flex gap-1 border-b overflow-x-auto scroll-fade"
+          style={{ borderColor: 'var(--rule)' }}
+        >
           {MEAL_SLOTS.map((slot) => {
             const active = slot === activeMeal;
             const count = items.filter((i) => i.meal === slot).length;
@@ -279,7 +288,7 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
               <button
                 key={slot}
                 onClick={() => setActiveMeal(slot)}
-                className="px-4 py-2 text-sm font-display transition-colors relative"
+                className="px-3 sm:px-4 py-2 text-sm font-display transition-colors relative whitespace-nowrap shrink-0"
                 style={{
                   color: active ? 'var(--accent)' : 'var(--ink-soft)',
                   fontWeight: active ? 600 : 400,
@@ -312,21 +321,31 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
           onSubstitute={substituteItem}
         />
 
+        {/* Macros + distribución debajo de la tabla (aprovecha espacio vertical).
+            En xl van en 2 columnas, en lg/md en una sola, en mobile el drawer las tiene también. */}
+        {(macroPanel || distributionPanel) && (
+          <div className="hidden lg:grid lg:grid-cols-1 xl:grid-cols-2 gap-4 mt-2">
+            {macroPanel}
+            {distributionPanel}
+          </div>
+        )}
+
         <ClinicalDisclaimer variant="inline" />
       </div>
 
-      {/* Right: totals + macros (desktop) */}
+      {/* Right column: TotalsPanel (sticky, siempre visible en desktop) */}
       <aside className="hidden lg:block">
         <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scroll-fade pr-1">
-          {panels}
+          <TotalsPanel totals={totals} targets={targets} vct={vct} iron={iron} />
         </div>
       </aside>
 
-      {/* Mobile FAB + drawer */}
+      {/* Mobile: FAB + drawer */}
       <button
         onClick={() => setShowTotals(true)}
         className="lg:hidden fixed bottom-4 right-4 z-40 rounded-full px-4 py-3 flex items-center gap-2 text-sm font-medium"
         style={{ background: 'var(--accent)', color: 'var(--paper)', boxShadow: 'var(--shadow-card-hover)' }}
+        aria-label="Abrir panel de totales y macros"
       >
         <BarChart3 size={16} />
         {Math.round(totals.energia_kcal?.value ?? 0)} kcal
@@ -345,11 +364,11 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
           >
             <header className="flex justify-between items-center p-4 border-b" style={{ borderColor: 'var(--rule)' }}>
               <h3 className="font-display font-medium" style={{ color: 'var(--ink)' }}>Totales del día</h3>
-              <button onClick={() => setShowTotals(false)} style={{ color: 'var(--ink-soft)' }}>
+              <button onClick={() => setShowTotals(false)} aria-label="Cerrar" style={{ color: 'var(--ink-soft)' }}>
                 <X size={18} />
               </button>
             </header>
-            <div className="flex-1 overflow-y-auto p-4">{panels}</div>
+            <div className="flex-1 overflow-y-auto p-4">{allPanelsForDrawer}</div>
           </div>
         </div>
       )}

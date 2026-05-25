@@ -222,10 +222,10 @@ function FoodRow({
 
   return (
     <li
-      className={`px-4 py-3 ${isFirst ? '' : 'border-t'} row-hover`}
+      className={`px-3 sm:px-4 py-3 ${isFirst ? '' : 'border-t'} row-hover`}
       style={{ borderColor: 'var(--rule)' }}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2 sm:gap-3">
         {/* Left: name + code */}
         <div className="min-w-0 flex-1 pt-1">
           <div className="flex items-baseline gap-2">
@@ -291,7 +291,7 @@ function FoodRow({
         </div>
 
         {/* Center: quantity controls — generous space, vertical stack */}
-        <div className="shrink-0 w-[220px]">
+        <div className="shrink-0 w-full sm:w-[220px]">
           <div className="flex items-center gap-1.5">
             {selectedMeasure ? (
               <input
@@ -362,7 +362,7 @@ function FoodRow({
         </div>
 
         {/* Right: actions */}
-        <div className="shrink-0 pt-1 flex items-center gap-1">
+        <div className="shrink-0 pt-1 flex items-center gap-1 self-end sm:self-start">
           {confirming ? (
             <div className="flex items-center gap-1">
               <button

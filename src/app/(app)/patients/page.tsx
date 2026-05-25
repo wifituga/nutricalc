@@ -26,9 +26,9 @@ export default async function PatientsPage({
 
   return (
     <div className="max-w-5xl">
-      <header className="flex items-end justify-between gap-4 mb-6">
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="font-display text-3xl font-medium" style={{ color: 'var(--ink)' }}>
+          <h1 className="font-display text-2xl sm:text-3xl font-medium" style={{ color: 'var(--ink)' }}>
             Pacientes
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--ink-soft)' }}>
@@ -42,7 +42,7 @@ export default async function PatientsPage({
         </div>
         <Link
           href="/patients/new"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium shrink-0"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium shrink-0 self-start sm:self-auto"
           style={{ background: 'var(--accent)', color: 'var(--paper)' }}
         >
           <Plus size={14} /> Nuevo paciente

@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Home, Users } from 'lucide-react';
+import { Home, Users, Menu, X } from 'lucide-react';
 import { logout } from '@/app/login/actions';
 
 const NAV = [
@@ -12,21 +13,43 @@ const NAV = [
 
 export default function Sidebar({ userName, clinicName }: { userName: string; clinicName: string }) {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
-  return (
+  // Close drawer on navigation
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  const SidebarBody = (
     <aside
-      className="w-56 flex flex-col border-r shrink-0"
+      className="w-56 flex flex-col border-r shrink-0 h-full"
       style={{ background: 'var(--paper-warm)', borderColor: 'var(--rule)' }}
     >
-      <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--rule)' }}>
-        <span className="font-display text-xl font-semibold" style={{ color: 'var(--accent)' }}>
-          NutriCalc
-        </span>
-        {clinicName && (
-          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--ink-soft)' }}>
-            {clinicName}
-          </p>
-        )}
+      <div
+        className="px-5 py-4 border-b flex items-center justify-between"
+        style={{ borderColor: 'var(--rule)' }}
+      >
+        <div className="min-w-0">
+          <span
+            className="font-display text-xl font-semibold"
+            style={{ color: 'var(--accent)' }}
+          >
+            NutriCalc
+          </span>
+          {clinicName && (
+            <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--ink-soft)' }}>
+              {clinicName}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => setOpen(false)}
+          aria-label="Cerrar menú"
+          className="md:hidden p-1 rounded hover:bg-[color:var(--paper)]"
+          style={{ color: 'var(--ink-soft)' }}
+        >
+          <X size={16} />
+        </button>
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-0.5">
@@ -50,8 +73,13 @@ export default function Sidebar({ userName, clinicName }: { userName: string; cl
         })}
       </nav>
 
-      <div className="px-5 py-4 border-t text-xs space-y-2" style={{ borderColor: 'var(--rule)' }}>
-        <p className="truncate font-medium" style={{ color: 'var(--ink)' }}>{userName}</p>
+      <div
+        className="px-5 py-4 border-t text-xs space-y-2"
+        style={{ borderColor: 'var(--rule)' }}
+      >
+        <p className="truncate font-medium" style={{ color: 'var(--ink)' }}>
+          {userName}
+        </p>
         <p className="text-[11px]" style={{ color: 'var(--ink-soft)' }}>
           <kbd
             className="font-mono px-1 py-0.5 rounded border text-[10px]"
@@ -72,5 +100,50 @@ export default function Sidebar({ userName, clinicName }: { userName: string; cl
         </form>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Mobile top bar (visible <md) */}
+      <header
+        className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 h-12 border-b"
+        style={{ background: 'var(--paper-warm)', borderColor: 'var(--rule)' }}
+      >
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Abrir menú"
+          className="p-1.5 rounded hover:bg-[color:var(--paper)]"
+          style={{ color: 'var(--ink)' }}
+        >
+          <Menu size={18} />
+        </button>
+        <span
+          className="font-display text-base font-semibold"
+          style={{ color: 'var(--accent)' }}
+        >
+          NutriCalc
+        </span>
+        <span className="w-7" /> {/* spacer for symmetric alignment */}
+      </header>
+
+      {/* Desktop sidebar (always visible >=md) */}
+      <div className="hidden md:flex">{SidebarBody}</div>
+
+      {/* Mobile drawer */}
+      {open && (
+        <div
+          className="md:hidden fixed inset-0 z-40"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="absolute top-0 left-0 bottom-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {SidebarBody}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
