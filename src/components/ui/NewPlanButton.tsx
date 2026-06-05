@@ -2,8 +2,19 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 
-export default function NewPlanButton({ patientId }: { patientId: string }) {
+export default function NewPlanButton({
+  patientId,
+  label = 'Nuevo plan',
+  disabled = false,
+  blockedReason,
+}: {
+  patientId: string;
+  label?: string;
+  disabled?: boolean;
+  blockedReason?: string;
+}) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
 
@@ -13,11 +24,7 @@ export default function NewPlanButton({ patientId }: { patientId: string }) {
     const res = await fetch('/api/plans', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        patient_id: patientId,
-        name: `Plan ${today}`,
-        plan_date: today,
-      }),
+      body: JSON.stringify({ patient_id: patientId, name: `Plan ${today}`, plan_date: today }),
     });
 
     if (res.ok) {
@@ -32,11 +39,13 @@ export default function NewPlanButton({ patientId }: { patientId: string }) {
   return (
     <button
       onClick={handleClick}
-      disabled={creating}
-      className="px-4 py-1.5 rounded text-sm font-medium disabled:opacity-50"
-      style={{ background: 'var(--accent)', color: 'var(--paper)' }}
+      disabled={creating || disabled}
+      title={disabled ? blockedReason : undefined}
+      className="inline-flex items-center gap-1.5 rounded-[7px] text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{ background: 'var(--accent)', color: 'var(--paper)', padding: '10px 17px' }}
     >
-      {creating ? 'Creando...' : 'Nuevo plan'}
+      <Plus size={15} />
+      {creating ? 'Creando...' : label}
     </button>
   );
 }

@@ -1,23 +1,19 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import NewPlanButton from '@/components/ui/NewPlanButton';
-import DeletePatientButton from '@/components/ui/DeletePatientButton';
-import { FormCard } from '@/components/ui/form-primitives';
-import { btnSecondary } from '@/components/ui/form-styles';
+import PatientTabs, { type TabDef, type HeaderBadge } from '@/components/ui/PatientTabs';
+import { Card, DataCell, Badge, Alert, EmptyState } from '@/components/ui/primitives';
 import { ageInYears } from '@/lib/calculations/age';
 import { classifyIMC } from '@/lib/calculations/healthyWeight';
 import { resolvePatientTargets } from '@/lib/calculations/patientTargets';
 import { COMORBIDITY_LABELS } from '@/lib/calculations/clinicalOverrides';
+import { patientBadges } from '@/lib/patientDisplay';
 import RequirementsDetail from '@/components/plan/RequirementsDetail';
 import { ClinicalDisclaimer } from '@/components/ui/ClinicalDisclaimer';
 import MeasurementHistory from '@/components/ui/MeasurementHistory';
 
-const PHYSIO_LABELS: Record<string, string> = {
-  pregnancy_t1: 'Embarazo T1', pregnancy_t2: 'Embarazo T2', pregnancy_t3: 'Embarazo T3',
-  lactation_0_6m: 'Lactancia 0-6m', lactation_6_12m: 'Lactancia 6-12m',
-};
 const AREA_LABELS: Record<string, string> = { urbana: 'Urbana', rural: 'Rural' };
 const LIFESTYLE_LABELS: Record<string, string> = { ligero: 'Ligero', no_ligero: 'No ligero' };
 
@@ -38,203 +34,158 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
   const age = patient.birth_date ? ageInYears(new Date(patient.birth_date)) : null;
   const { vct, merged, comorbidities } = await resolvePatientTargets(supabase, patient);
-
-  const isOlder = age != null && age >= 60;
-  const physioLabel = patient.physiological_state
-    ? PHYSIO_LABELS[patient.physiological_state] ?? ''
-    : '';
   const imc = patient.height_cm && patient.weight_kg
     ? patient.weight_kg / Math.pow(patient.height_cm / 100, 2)
     : null;
   const conflicts = Object.values(merged).filter((m) => m.conflict);
+  const blocked = conflicts.length > 0;
+  const planList = plans ?? [];
 
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-4 border-b" style={{ borderColor: 'var(--rule)' }}>
-        <div className="min-w-0 flex-1">
-          <Link href="/patients" className="text-xs inline-flex items-center gap-1 mb-2 hover:underline"
-            style={{ color: 'var(--ink-soft)' }}>
-            <ArrowLeft size={12} /> Volver a pacientes
-          </Link>
-          <h1 className="font-display text-2xl sm:text-3xl font-medium leading-tight break-words" style={{ color: 'var(--ink)' }}>
-            {patient.full_name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-sm" style={{ color: 'var(--ink-soft)' }}>
-            {age != null && <span>{age} años</span>}
-            {patient.sex && <><Sep /><span>{patient.sex === 'F' ? 'Femenino' : 'Masculino'}</span></>}
-            {patient.document_id && <><Sep /><span className="font-mono text-xs">{patient.document_id}</span></>}
-            {isOlder && <Badge variant="info">Adulto mayor</Badge>}
-            {patient.is_athlete && <Badge variant="accent">Deportista</Badge>}
-            {physioLabel && <Badge variant="warn">{physioLabel}</Badge>}
-          </div>
+  // Identidad del header
+  const metaParts = [
+    age != null ? `${age} a` : null,
+    patient.sex ? (patient.sex === 'F' ? '♀ Femenino' : '♂ Masculino') : null,
+    patient.document_id ? `DNI ${patient.document_id}` : null,
+  ].filter(Boolean);
+  const headerBadges: HeaderBadge[] = patientBadges(patient);
+  if (blocked) headerBadges.unshift({ label: 'Conflicto clínico', variant: 'danger', dot: true });
+
+  // ---------- Paneles ----------
+  const antropometriaCards = (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <DataCell label="Talla" value={patient.height_cm ?? undefined} unit="cm" isNull={!patient.height_cm} />
+      <DataCell label="Peso actual" value={patient.weight_kg ?? undefined} unit="kg" isNull={!patient.weight_kg} />
+      {patient.weight_pregest_kg != null && <DataCell label="Peso pregest." value={patient.weight_pregest_kg} unit="kg" />}
+      {imc != null && age != null
+        ? <DataCell label="IMC actual" value={imc.toFixed(1)} note={classifyIMC(imc, age).label} />
+        : <DataCell label="IMC actual" isNull note="faltan datos" />}
+      {vct && <DataCell label="Peso usado" value={vct.weightUsed.toFixed(1)} unit="kg" note={vct.weightSource === 'actual' ? 'actual' : vct.weightSource === 'healthy' ? 'saludable' : 'pregestacional'} />}
+      <DataCell label="Área" value={patient.residence_area ? AREA_LABELS[patient.residence_area] : undefined} isNull={!patient.residence_area} />
+      <DataCell label="Actividad" value={patient.lifestyle ? LIFESTYLE_LABELS[patient.lifestyle] : undefined} isNull={!patient.lifestyle} />
+    </div>
+  );
+
+  const energyBlock = vct ? (
+    <Card className="p-5">
+      <h3 className="font-semibold mb-1" style={{ fontSize: 15, color: 'var(--ink)' }}>Requerimiento energético</h3>
+      <p className="text-[12px] mb-3" style={{ color: 'var(--ink-faint)' }}>FAO/OMS 2004 · adaptación CENAN Perú</p>
+      <div className="space-y-1.5">
+        {vct.tmb > 0 && <EnergyRow label="TMB" value={`${Math.round(vct.tmb)} kcal/día`} />}
+        {vct.naf != null && <EnergyRow label="NAF" value={vct.naf.toFixed(2)} />}
+        <EnergyRow label="GET" value={`${Math.round(vct.get)} kcal/día`} />
+        {vct.encdt > 0 && <EnergyRow label="ENCDT (crecimiento)" value={`+${vct.encdt} kcal/día`} />}
+        {vct.adicion > 0 && <EnergyRow label="Adición fisiológica" value={`+${vct.adicion} kcal/día`} />}
+        <div className="pt-2 mt-1 border-t" style={{ borderColor: 'var(--rule)' }}>
+          <EnergyRow label="VCT" value={`${Math.round(vct.vct)} kcal/día`} highlight />
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Link href={`/patients/${id}/edit`} className={btnSecondary}
-            style={{ background: 'white', borderColor: 'var(--rule)', color: 'var(--ink)' }}>
-            Editar
-          </Link>
-          <DeletePatientButton patientId={id} />
+      </div>
+      <Link href={`/patients/${id}/calculation`} className="inline-flex items-center gap-1 text-xs mt-3 hover:underline" style={{ color: 'var(--accent)' }}>
+        Ver cálculo paso a paso →
+      </Link>
+    </Card>
+  ) : (
+    <Card className="p-5">
+      <h3 className="font-semibold mb-1" style={{ fontSize: 15, color: 'var(--ink)' }}>Requerimiento energético</h3>
+      <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+        Complete fecha de nacimiento, sexo, talla, peso, área de residencia y nivel de actividad para calcular el VCT.
+      </p>
+    </Card>
+  );
+
+  const perfilClinico = (comorbidities.length > 0 || blocked) ? (
+    <Card className="p-5">
+      <h3 className="font-semibold mb-3" style={{ fontSize: 15, color: 'var(--ink)' }}>Perfil clínico activo</h3>
+      <div className="flex flex-wrap gap-2">
+        {comorbidities.map((c) => <Badge key={c} variant="neutral">{COMORBIDITY_LABELS[c] ?? c}</Badge>)}
+      </div>
+      {blocked && (
+        <div className="mt-3">
+          <Alert variant="conflict" title="Conflicto clínico — requiere tu decisión">
+            Hay rangos incompatibles entre comorbilidades (revisa la pestaña Requerimientos). El VCT objetivo queda en pausa y “Armar plan” está deshabilitado hasta resolverlo.
+          </Alert>
         </div>
-      </header>
+      )}
+    </Card>
+  ) : null;
 
-      <ClinicalDisclaimer variant="banner" />
-
-      {/* CTA crear plan */}
-      {vct && (
-        <section className="rounded-lg p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-          style={{ background: 'var(--accent)', color: 'var(--paper)', boxShadow: 'var(--shadow-card)' }}>
-          <div>
-            <h2 className="font-display text-lg font-medium mb-1">¿Listo para armar un plan?</h2>
-            <p className="text-sm opacity-90">
-              VCT objetivo: <span className="font-mono font-medium">{Math.round(vct.vct)} kcal/día</span>
+  const planesPanel = planList.length > 0 ? (
+    <div className="space-y-2">
+      {planList.map((plan) => (
+        <Link key={plan.id} href={`/patients/${id}/plans/${plan.id}`}
+          className="flex items-center gap-3 rounded-[10px] border p-4 row-hover"
+          style={{ background: 'var(--surface)', borderColor: 'var(--rule)', boxShadow: 'var(--shadow-card)', color: 'inherit' }}>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold truncate" style={{ color: 'var(--ink)' }}>{plan.name}</h3>
+            <p className="text-xs mt-0.5 mono" style={{ color: 'var(--ink-soft)' }}>
+              {plan.plan_date}{plan.calculated_vct ? ` · ${Math.round(plan.calculated_vct)} kcal` : ''}
             </p>
           </div>
-          <NewPlanButton patientId={id} />
-        </section>
-      )}
-
-      {/* Perfil clínico */}
-      {comorbidities.length > 0 && (
-        <FormCard title="Perfil clínico activo">
-          <div className="flex flex-wrap gap-2">
-            {comorbidities.map((c) => (
-              <Badge key={c} variant="clinical">{COMORBIDITY_LABELS[c] ?? c}</Badge>
-            ))}
-          </div>
-          {conflicts.length > 0 && (
-            <div className="border rounded-md px-4 py-3 text-sm"
-              style={{ background: '#fdf6e3', borderColor: 'var(--warn)', color: 'var(--ink)' }}>
-              <strong>Conflicto clínico detectado.</strong> Hay rangos incompatibles
-              entre comorbilidades — requiere decisión clínica manual (ver detalle).
-            </div>
-          )}
-        </FormCard>
-      )}
-
-      {/* Antropometría */}
-      <FormCard title="Antropometría">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <DataCell label="Talla" value={patient.height_cm ? `${patient.height_cm} cm` : '—'} />
-          <DataCell label="Peso actual" value={patient.weight_kg ? `${patient.weight_kg} kg` : '—'} />
-          {patient.weight_pregest_kg && (
-            <DataCell label="Peso pregest." value={`${patient.weight_pregest_kg} kg`} />
-          )}
-          {imc != null && (
-            <DataCell label="IMC actual" value={imc.toFixed(1)}
-              hint={classifyIMC(imc, age ?? 30).label}
-              hintColor={`var(--${classifyIMC(imc, age ?? 30).color})`} />
-          )}
-          {vct && (
-            <DataCell label="Peso usado" value={`${vct.weightUsed.toFixed(1)} kg`}
-              hint={vct.weightSource === 'actual' ? 'actual'
-                : vct.weightSource === 'healthy' ? 'saludable' : 'pregestacional'} />
-          )}
-          {patient.residence_area && (
-            <DataCell label="Área" value={AREA_LABELS[patient.residence_area] ?? patient.residence_area} />
-          )}
-          {patient.lifestyle && (
-            <DataCell label="Actividad" value={LIFESTYLE_LABELS[patient.lifestyle] ?? patient.lifestyle} />
-          )}
-        </div>
-        {patient.notes && (
-          <p className="text-sm pt-2 border-t" style={{ color: 'var(--ink)', borderColor: 'var(--rule)' }}>
-            {patient.notes}
-          </p>
-        )}
-      </FormCard>
-
-      {/* Requerimiento energético */}
-      {vct ? (
-        <FormCard title="Requerimiento energético" subtitle="FAO/OMS 2004 · adaptación CENAN Perú">
-          <div className="space-y-2">
-            {vct.tmb > 0 && <EnergyRow label="TMB" value={`${Math.round(vct.tmb)} kcal/día`} />}
-            {vct.naf != null && <EnergyRow label="NAF" value={vct.naf.toFixed(2)} />}
-            <EnergyRow label="GET" value={`${Math.round(vct.get)} kcal/día`} />
-            {vct.encdt > 0 && <EnergyRow label="ENCDT (crecimiento)" value={`+${vct.encdt} kcal/día`} />}
-            {vct.adicion > 0 && <EnergyRow label="Adición fisiológica" value={`+${vct.adicion} kcal/día`} />}
-            <div className="pt-2 mt-1 border-t" style={{ borderColor: 'var(--rule)' }}>
-              <EnergyRow label="VCT" value={`${Math.round(vct.vct)} kcal/día`} highlight />
-            </div>
-          </div>
-        </FormCard>
-      ) : (
-        <FormCard title="Requerimiento energético">
-          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
-            Complete fecha de nacimiento, sexo, talla, peso, área de residencia y nivel
-            de actividad para calcular el VCT.
-          </p>
-        </FormCard>
-      )}
-
-      {vct && (
-        <Link
-          href={`/patients/${id}/calculation`}
-          className="inline-flex items-center gap-1 text-xs hover:underline"
-          style={{ color: 'var(--ink-soft)' }}
-        >
-          Ver cálculo paso a paso →
+          <ChevronRight size={16} className="shrink-0" style={{ color: 'var(--ink-faint)' }} />
         </Link>
-      )}
+      ))}
+    </div>
+  ) : (
+    <EmptyState title="Sin planes aún" description="Crea el primero con el botón “Armar plan”." />
+  );
 
-      <RequirementsDetail merged={merged} comorbidities={comorbidities} />
-
-      <MeasurementHistory patientId={id} heightCmHint={patient.height_cm} />
-
-      {/* Planes */}
-      <section>
-        <header className="flex items-center justify-between mb-3">
-          <h2 className="font-display text-xl font-medium" style={{ color: 'var(--ink)' }}>Planes</h2>
-          <NewPlanButton patientId={id} />
-        </header>
-        {plans && plans.length > 0 ? (
+  // Resumen = vistazo de 5 segundos
+  const resumen = (
+    <div className="space-y-4">
+      {perfilClinico}
+      {antropometriaCards}
+      {energyBlock}
+      {planList.length > 0 && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold" style={{ fontSize: 15, color: 'var(--ink)' }}>Planes recientes</h3>
+            <NewPlanButton patientId={id} label="Nuevo plan" disabled={blocked} blockedReason="Resuelve el conflicto clínico primero" />
+          </div>
           <div className="space-y-2">
-            {plans.map((plan) => (
-              <Link key={plan.id} href={`/patients/${id}/plans/${plan.id}`}
-                className="block bg-white border rounded-lg p-4 hover:shadow-md transition-shadow"
-                style={{ borderColor: 'var(--rule)', boxShadow: 'var(--shadow-card)' }}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-medium truncate" style={{ color: 'var(--ink)' }}>{plan.name}</h3>
-                    <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--ink-soft)' }}>
-                      {plan.plan_date}
-                      {plan.calculated_vct ? ` · ${Math.round(plan.calculated_vct)} kcal` : ''}
-                    </p>
-                  </div>
-                  <ChevronRight size={16} className="shrink-0" style={{ color: 'var(--ink-soft)' }} />
-                </div>
+            {planList.slice(0, 3).map((plan) => (
+              <Link key={plan.id} href={`/patients/${id}/plans/${plan.id}`} className="flex items-center gap-3 row-hover rounded-md px-2 py-2 -mx-2" style={{ color: 'inherit' }}>
+                <span className="min-w-0 flex-1 text-sm font-medium truncate" style={{ color: 'var(--ink)' }}>{plan.name}</span>
+                <span className="mono text-xs shrink-0" style={{ color: 'var(--ink-soft)' }}>{plan.plan_date}</span>
+                <ChevronRight size={14} style={{ color: 'var(--ink-faint)' }} />
               </Link>
             ))}
           </div>
-        ) : (
-          <div className="bg-white border border-dashed rounded-lg p-8 text-center"
-            style={{ borderColor: 'var(--rule)' }}>
-            <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
-              Sin planes aún. Crea el primero desde el botón de arriba.
-            </p>
-          </div>
-        )}
-      </section>
+        </Card>
+      )}
+      <ClinicalDisclaimer variant="banner" />
     </div>
   );
-}
 
-function Sep() {
-  return <span style={{ color: 'var(--rule)' }}>·</span>;
-}
+  const antroEnergia = (
+    <div className="space-y-4">
+      <Card className="p-5">
+        <h3 className="font-semibold mb-3" style={{ fontSize: 15, color: 'var(--ink)' }}>Antropometría</h3>
+        {antropometriaCards}
+        {patient.notes && <p className="text-sm pt-3 mt-3 border-t" style={{ color: 'var(--ink)', borderColor: 'var(--rule)' }}>{patient.notes}</p>}
+      </Card>
+      {energyBlock}
+    </div>
+  );
 
-function DataCell({ label, value, hint, hintColor }: {
-  label: string; value: string; hint?: string; hintColor?: string;
-}) {
+  const tabs: TabDef[] = [
+    { key: 'resumen', label: 'Resumen', node: resumen },
+    { key: 'antro', label: 'Antropometría y energía', node: antroEnergia },
+    { key: 'reqs', label: 'Requerimientos', node: <RequirementsDetail merged={merged} comorbidities={comorbidities} /> },
+    { key: 'planes', label: 'Planes', count: planList.length, node: planesPanel },
+    { key: 'hist', label: 'Historial', node: <MeasurementHistory patientId={id} heightCmHint={patient.height_cm} /> },
+  ];
+
   return (
-    <div>
-      <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--ink-soft)' }}>
-        {label}
-      </div>
-      <div className="font-mono text-sm" style={{ color: 'var(--ink)' }}>
-        {value}
-        {hint && <span className="text-xs ml-1.5" style={{ color: hintColor ?? 'var(--ink-soft)' }}>{hint}</span>}
-      </div>
+    <div className="max-w-5xl mx-auto">
+      <PatientTabs
+        patientId={id}
+        name={patient.full_name}
+        metaLine={metaParts.join('  ·  ')}
+        badges={headerBadges}
+        vct={vct ? Math.round(vct.vct) : null}
+        blocked={blocked}
+        blockedReason="Resuelve el conflicto clínico entre comorbilidades primero"
+        tabs={tabs}
+      />
     </div>
   );
 }
@@ -242,32 +193,10 @@ function DataCell({ label, value, hint, hintColor }: {
 function EnergyRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className="flex justify-between items-baseline">
-      <span className={highlight ? 'font-display text-base font-medium' : 'text-sm'}
-        style={{ color: highlight ? 'var(--ink)' : 'var(--ink-soft)' }}>
+      <span className={highlight ? 'font-display font-medium' : 'text-sm'} style={{ fontSize: highlight ? 16 : undefined, color: highlight ? 'var(--ink)' : 'var(--ink-soft)' }}>
         {label}
       </span>
-      <span className={`font-mono ${highlight ? 'text-lg font-medium' : 'text-sm'}`}
-        style={{ color: 'var(--ink)' }}>
-        {value}
-      </span>
+      <span className="mono font-semibold" style={{ fontSize: highlight ? 18 : 14, color: 'var(--ink)' }}>{value}</span>
     </div>
-  );
-}
-
-function Badge({ variant, children }: {
-  variant: 'info' | 'warn' | 'accent' | 'clinical';
-  children: React.ReactNode;
-}) {
-  const styleMap = {
-    info:     { background: '#eaf2fb', color: '#1e4a73', borderColor: '#b9d4ee' },
-    warn:     { background: '#fdf6e3', color: '#7a5a00', borderColor: 'var(--warn)' },
-    accent:   { background: 'var(--paper-warm)', color: 'var(--accent)', borderColor: 'var(--rule)' },
-    clinical: { background: 'var(--paper-warm)', color: 'var(--ink)', borderColor: 'var(--rule)' },
-  }[variant];
-  return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium"
-      style={styleMap}>
-      {children}
-    </span>
   );
 }

@@ -113,6 +113,10 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .scroll-fade::-webkit-scrollbar-track { background: transparent; }
 
+/* Tab panel fade+rise */
+@keyframes nc-tabfade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.nc-tabfade { animation: nc-tabfade .12s ease-out; }
+
 /* Skeleton shimmer */
 @keyframes nc-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
 .nc-skeleton {
