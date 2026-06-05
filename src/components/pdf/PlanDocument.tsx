@@ -4,11 +4,15 @@ import { MEAL_LABELS, MEAL_SLOTS, NUTRIENT_LABELS, PRIMARY_NUTRIENTS } from '@/l
 import { getTargetLevel, type ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
 import type { MacroBreakdown } from '@/lib/calculations/macroDistribution';
+import { ageInYears } from '@/lib/calculations/age';
+import { PDF } from './pdfTokens';
 
-function formatQuantity(
-  item: MealPlanItem,
-  measures: Map<number, HouseholdMeasure>,
-): string {
+// NOTA: se conserva Helvetica (fuente embebida) en vez de registrar Fraunces/
+// Inter/JetBrains Mono vía Font.register con URLs remotas: en serverless
+// (Vercel) una descarga fallida rompería la generación del PDF. Los tokens de
+// color/espaciado del sistema v2 sí se aplican (pdfTokens.ts).
+
+function formatQuantity(item: MealPlanItem, measures: Map<number, HouseholdMeasure>): string {
   if (item.household_measure_id) {
     const m = measures.get(item.household_measure_id);
     if (m) {
@@ -21,101 +25,55 @@ function formatQuantity(
 }
 
 const styles = StyleSheet.create({
-  page: {
-    fontFamily: 'Helvetica',
-    fontSize: 10,
-    color: '#1a1815',
-    padding: 40,
-    backgroundColor: '#f7f4ee',
-  },
-  header: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#d6cfc0',
-    paddingBottom: 12,
-    marginBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  clinicName: { fontSize: 14, fontFamily: 'Helvetica-Bold', color: '#6b4423' },
-  planTitle: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: '#1a1815', marginBottom: 2 },
-  patientName: { fontSize: 11, color: '#5c574e' },
-  meta: { fontSize: 9, color: '#5c574e', textAlign: 'right' },
-  section: { marginBottom: 14 },
-  mealHeader: {
-    fontSize: 11,
-    fontFamily: 'Helvetica-Bold',
-    color: '#6b4423',
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#d6cfc0',
-    marginBottom: 4,
-  },
-  row: {
-    flexDirection: 'row',
-    paddingVertical: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: '#efe9dd',
-  },
-  code: { width: 36, fontFamily: 'Helvetica', fontSize: 9, color: '#6b4423' },
+  page: { fontFamily: 'Helvetica', fontSize: 10, color: PDF.ink, padding: 40, paddingBottom: 90, backgroundColor: PDF.paper },
+
+  // header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  mark: { width: 22, height: 22, borderRadius: PDF.rSm, backgroundColor: PDF.accent, color: '#fff', fontFamily: 'Helvetica-Bold', fontSize: 13, textAlign: 'center', paddingTop: 4, marginRight: 7 },
+  clinicName: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: PDF.accent },
+  planTitle: { fontSize: 17, fontFamily: 'Helvetica-Bold', color: PDF.ink },
+  folio: { fontSize: 8, color: PDF.inkFaint, textAlign: 'right' },
+  meta: { fontSize: 8, color: PDF.inkSoft, textAlign: 'right' },
+
+  // patient strip
+  strip: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: PDF.surfaceSunk, borderRadius: PDF.rMd, padding: 9, marginBottom: 12 },
+  stripCell: { width: '25%', paddingVertical: 2 },
+  stripLabel: { fontSize: 7, color: PDF.inkFaint, textTransform: 'uppercase', letterSpacing: 0.5 },
+  stripValue: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: PDF.ink, marginTop: 1 },
+
+  // disclaimer
+  disclaimerBanner: { padding: 7, backgroundColor: PDF.accentSoft, borderRadius: PDF.rSm, borderLeftWidth: 2, borderLeftColor: PDF.accent, marginBottom: 12 },
+  disclaimerBannerText: { fontSize: 8, color: PDF.accentDeep, fontStyle: 'italic' },
+
+  // meals
+  section: { marginBottom: 12 },
+  mealHeader: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: PDF.accentDeep, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: PDF.rule, marginBottom: 3 },
+  row: { flexDirection: 'row', paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: PDF.surfaceSunk },
+  code: { width: 38, fontSize: 9, color: PDF.accent },
   foodName: { flex: 1, fontSize: 9 },
-  grams: { width: 130, textAlign: 'right', fontFamily: 'Helvetica', fontSize: 9 },
-  kcal: { width: 50, textAlign: 'right', fontFamily: 'Helvetica', fontSize: 9 },
-  macrosBox: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#d6cfc0',
-    borderRadius: 4,
-    padding: 10,
-    backgroundColor: '#efe9dd',
-  },
-  macrosRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 1.5,
-  },
-  macroValue: { fontSize: 9, fontFamily: 'Helvetica', textAlign: 'right', width: 180 },
-  disclaimerBanner: {
-    marginVertical: 8,
-    padding: 8,
-    backgroundColor: '#efe9dd',
-    borderRadius: 4,
-    borderLeftWidth: 2,
-    borderLeftColor: '#6b4423',
-  },
-  disclaimerBannerText: { fontSize: 8, color: '#5c574e', fontStyle: 'italic' },
-  totalsBox: {
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: '#d6cfc0',
-    borderRadius: 4,
-    padding: 10,
-    backgroundColor: '#efe9dd',
-  },
-  totalsTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 1.5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#d6cfc0',
-  },
-  totalLabel: { fontSize: 9, color: '#5c574e', flex: 1 },
-  totalValue: { fontSize: 9, fontFamily: 'Helvetica', textAlign: 'right', width: 70 },
-  alertWarn: { color: '#b88200' },
-  alertDanger: { color: '#a8341c' },
-  alertOk: { color: '#2d6a3e' },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    borderTopWidth: 1,
-    borderTopColor: '#d6cfc0',
-    paddingTop: 6,
-  },
-  footerText: { fontSize: 7, color: '#5c574e' },
-  disclaimer: { fontSize: 7, color: '#a8341c', marginBottom: 2 },
+  grams: { width: 140, textAlign: 'right', fontSize: 9, color: PDF.inkSoft },
+  kcal: { width: 52, textAlign: 'right', fontSize: 9 },
+
+  // boxes
+  box: { marginTop: 10, borderWidth: 1, borderColor: PDF.rule, borderRadius: PDF.rMd, padding: 10, backgroundColor: PDF.surface },
+  boxTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 6, color: PDF.ink },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 1.5, borderBottomWidth: 1, borderBottomColor: PDF.surfaceSunk },
+  totalLabel: { fontSize: 9, color: PDF.inkSoft, flex: 1 },
+  totalValue: { fontSize: 9, textAlign: 'right', width: 110 },
+  macroValue: { fontSize: 9, textAlign: 'right', width: 180 },
+  partialNote: { fontSize: 7.5, color: PDF.cLow, marginTop: 5, fontStyle: 'italic' },
+  alertWarn: { color: PDF.cLow }, alertDanger: { color: PDF.cDef }, alertOk: { color: PDF.cOk },
+
+  // signature + footer
+  sign: { marginTop: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  signName: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: PDF.ink },
+  signSub: { fontSize: 8, color: PDF.inkSoft, marginTop: 2 },
+  shareNote: { fontSize: 7.5, color: PDF.inkFaint, textAlign: 'right', maxWidth: 200 },
+
+  footer: { position: 'absolute', bottom: 28, left: 40, right: 40, borderTopWidth: 1, borderTopColor: PDF.rule, paddingTop: 6 },
+  footerDisclaimer: { fontSize: 7, color: PDF.cDef, marginBottom: 2 },
+  footerText: { fontSize: 6.5, color: PDF.inkSoft, lineHeight: 1.4 },
 });
 
 interface Props {
@@ -138,39 +96,71 @@ export function PlanDocument({
   clinicName, nutritionistName, nutritionistLicense,
 }: Props) {
   const today = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+  const age = patient.birth_date ? ageInYears(new Date(patient.birth_date)) : null;
+  const folio = plan.id?.slice(0, 8).toUpperCase();
+  const hasPartial = PRIMARY_NUTRIENTS.some((k) => (totals[k]?.items_with_null ?? 0) > 0);
+  const shareUrl = plan.share_token
+    ? `nutricalc.pe/p/${plan.share_token}`
+    : null;
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
+        {/* Header con marca + folio */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.clinicName}>{clinicName || 'NutriCalc'}</Text>
+            <View style={styles.brandRow}>
+              <Text style={styles.mark}>N</Text>
+              <Text style={styles.clinicName}>{clinicName || 'NutriCalc'}</Text>
+            </View>
             <Text style={styles.planTitle}>{plan.name}</Text>
-            <Text style={styles.patientName}>{patient.full_name} · {profileName}</Text>
           </View>
           <View>
-            <Text style={styles.meta}>Fecha: {plan.plan_date}</Text>
+            <Text style={styles.folio}>Folio {folio}</Text>
+            <Text style={styles.meta}>Plan: {plan.plan_date}</Text>
             <Text style={styles.meta}>Impreso: {today}</Text>
-            {patient.weight_kg && <Text style={styles.meta}>Peso: {patient.weight_kg} kg</Text>}
-            {patient.height_cm && <Text style={styles.meta}>Talla: {patient.height_cm} cm</Text>}
           </View>
+        </View>
+
+        {/* Franja de paciente */}
+        <View style={styles.strip}>
+          <View style={[styles.stripCell, { width: '40%' }]}>
+            <Text style={styles.stripLabel}>Paciente</Text>
+            <Text style={styles.stripValue}>{patient.full_name}</Text>
+          </View>
+          <View style={styles.stripCell}>
+            <Text style={styles.stripLabel}>Edad / sexo</Text>
+            <Text style={styles.stripValue}>{age != null ? `${age} a` : '—'} {patient.sex ? `· ${patient.sex === 'F' ? 'F' : 'M'}` : ''}</Text>
+          </View>
+          <View style={styles.stripCell}>
+            <Text style={styles.stripLabel}>Antropometría</Text>
+            <Text style={styles.stripValue}>{patient.weight_kg ? `${patient.weight_kg} kg` : '—'} {patient.height_cm ? `· ${patient.height_cm} cm` : ''}</Text>
+          </View>
+          <View style={[styles.stripCell, { width: '40%' }]}>
+            <Text style={styles.stripLabel}>Perfil clínico</Text>
+            <Text style={styles.stripValue}>{profileName}</Text>
+          </View>
+          {vct && (
+            <View style={styles.stripCell}>
+              <Text style={styles.stripLabel}>VCT objetivo</Text>
+              <Text style={styles.stripValue}>{Math.round(vct.vct)} kcal/día</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.disclaimerBanner}>
           <Text style={styles.disclaimerBannerText}>
-            Esta herramienta provee cálculos basados en TPCA 2023, FAO/OMS 2004 e
-            IOM/NASEM DRIs. Los valores son referenciales y deben ser validados
-            por un nutricionista colegiado antes de uso clínico.
+            Cálculos basados en TPCA (INS/CENAN), FAO/OMS 2004 (adaptación CENAN) e IOM/NASEM DRIs.
+            Documento de apoyo profesional; no reemplaza la consulta presencial ni el juicio clínico del nutricionista colegiado.
           </Text>
         </View>
 
-        {/* Meals */}
+        {/* Comidas */}
         {MEAL_SLOTS.map((slot) => {
           const slotItems = items.filter((i) => i.meal === slot);
           if (slotItems.length === 0) return null;
           return (
-            <View key={slot} style={styles.section}>
+            <View key={slot} style={styles.section} wrap={false}>
               <Text style={styles.mealHeader}>{MEAL_LABELS[slot]}</Text>
               {slotItems.map((item) => {
                 const kcal = item.foods.per_100g.energia_kcal != null
@@ -189,76 +179,73 @@ export function PlanDocument({
           );
         })}
 
-        {/* Totals */}
-        <View style={styles.totalsBox}>
-          <Text style={styles.totalsTitle}>
-            Totales nutricionales del día{vct ? ` · VCT ${Math.round(vct.vct)} kcal` : ''}
-          </Text>
+        {/* Totales */}
+        <View style={styles.box}>
+          <Text style={styles.boxTitle}>Totales nutricionales del día{vct ? ` · VCT ${Math.round(vct.vct)} kcal` : ''}</Text>
           {PRIMARY_NUTRIENTS.map((key) => {
             const info = NUTRIENT_LABELS[key];
             const value = totals[key]?.value ?? null;
+            const nulls = totals[key]?.items_with_null ?? 0;
             const target = targets[key];
             const level = value != null && target ? getTargetLevel(value, target, key) : null;
             const valueStr = value != null
-              ? `${value.toLocaleString('es-PE', { maximumFractionDigits: 1 })} ${info.unit}`
+              ? `${nulls > 0 ? '≥ ' : ''}${value.toLocaleString('es-PE', { maximumFractionDigits: 1 })} ${info.unit}`
               : '—';
             const targetStr = target
-              ? target.target != null
-                ? ` / meta ${target.target}`
-                : target.min != null
-                  ? ` / min ${target.min}`
-                  : target.max != null ? ` / max ${target.max}` : ''
+              ? target.target != null ? ` / meta ${target.target}`
+                : target.min != null ? ` / min ${target.min}`
+                : target.max != null ? ` / max ${target.max}` : ''
               : '';
-            const colorStyle = level === 'exceeded' ? styles.alertDanger
+            const colorStyle = nulls > 0 ? styles.alertWarn
+              : level === 'exceeded' ? styles.alertDanger
               : level === 'near_ul' || level === 'low' ? styles.alertWarn
               : level === 'ok' || level === 'high_natural' ? styles.alertOk
               : undefined;
-
             return (
               <View key={key} style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{info.label}</Text>
-                <Text style={[styles.totalValue, ...(colorStyle ? [colorStyle] : [])]}>
-                  {valueStr}{targetStr}
-                </Text>
+                <Text style={[styles.totalValue, ...(colorStyle ? [colorStyle] : [])]}>{valueStr}{targetStr}</Text>
               </View>
             );
           })}
+          {hasPartial && (
+            <Text style={styles.partialNote}>
+              ≥ indica total parcial: uno o más alimentos no tienen ese nutriente registrado en TPCA. El valor real podría ser mayor.
+            </Text>
+          )}
         </View>
 
-        {/* Macro distribution */}
+        {/* Macros */}
         {macros && (
-          <View style={styles.macrosBox}>
-            <Text style={styles.totalsTitle}>Distribución de macronutrientes (AMDR sugerido)</Text>
-            <View style={styles.macrosRow}>
-              <Text style={styles.totalLabel}>Carbohidratos</Text>
-              <Text style={styles.macroValue}>
-                {macros.cho.grams} g · {macros.cho.kcal} kcal · {macros.cho.pct}%
-              </Text>
-            </View>
-            <View style={styles.macrosRow}>
-              <Text style={styles.totalLabel}>Proteínas</Text>
-              <Text style={styles.macroValue}>
-                {macros.prot.grams} g · {macros.prot.kcal} kcal · {macros.prot.pct}%
-              </Text>
-            </View>
-            <View style={styles.macrosRow}>
-              <Text style={styles.totalLabel}>Grasa</Text>
-              <Text style={styles.macroValue}>
-                {macros.fat.grams} g · {macros.fat.kcal} kcal · {macros.fat.pct}%
-              </Text>
-            </View>
+          <View style={styles.box}>
+            <Text style={styles.boxTitle}>Distribución de macronutrientes (AMDR sugerido)</Text>
+            {([['Carbohidratos', macros.cho], ['Proteínas', macros.prot], ['Grasa', macros.fat]] as const).map(([label, m]) => (
+              <View key={label} style={styles.totalRow}>
+                <Text style={styles.totalLabel}>{label}</Text>
+                <Text style={styles.macroValue}>{m.grams} g · {m.kcal} kcal · {m.pct}%</Text>
+              </View>
+            ))}
           </View>
         )}
 
-        {/* Footer */}
+        {/* Firma */}
+        <View style={styles.sign}>
+          <View>
+            <Text style={styles.signName}>{nutritionistName}</Text>
+            <Text style={styles.signSub}>
+              Nutricionista{nutritionistLicense ? ` · CNP N° ${nutritionistLicense}` : ''}{clinicName ? ` · ${clinicName}` : ''}
+            </Text>
+          </View>
+          {shareUrl && <Text style={styles.shareNote}>Versión en línea:{'\n'}{shareUrl}</Text>}
+        </View>
+
+        {/* Footer legal */}
         <View style={styles.footer} fixed>
-          <Text style={styles.disclaimer}>
-            Plan elaborado por {nutritionistName}{nutritionistLicense ? `, Colegiatura CNP N°${nutritionistLicense}` : ''}.
-            Información de apoyo profesional, no reemplaza consulta presencial.
+          <Text style={styles.footerDisclaimer}>
+            Plan elaborado por {nutritionistName}{nutritionistLicense ? `, CNP N° ${nutritionistLicense}` : ''}. Apoyo profesional; no reemplaza la consulta presencial. Datos protegidos — Ley N° 29733 (Perú).
           </Text>
           <Text style={styles.footerText}>
-            Composición en 100 g de porción comestible. Fuente: Reyes-García MM, Gómez-Sánchez Prieto VI, Espinoza-Barrientos CM.
-            Tablas Peruanas de Composición de Alimentos. 11.ª ed. Lima: Instituto Nacional de Salud, 2023. ISBN 978-612-310-178-7.
+            Composición en 100 g de porción comestible. Fuente: Reyes-García MM, Gómez-Sánchez Prieto VI, Espinoza-Barrientos CM. Tablas Peruanas de Composición de Alimentos. INS/CENAN, Lima. · Requerimiento energético: FAO/OMS 2004 (adaptación CENAN). · Micronutrientes: DRIs IOM/NASEM. · Overrides clínicos: KDOQI 2020, ADA 2024, AHA, DASH, WHO 2017.
           </Text>
         </View>
       </Page>

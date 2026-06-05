@@ -16,7 +16,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
       created_by:nutritionists(full_name, professional_license, clinic:clinics(name)),
       items:meal_plan_items(
         id, meal, grams, position, household_measure_id, household_measure_qty,
-        food:foods(code, name, group_letter)
+        food:foods(code, name, group_letter, energia_kcal)
       )
     `)
     .eq('share_token', token)
@@ -49,7 +49,9 @@ export default async function PublicPlanPage({ params }: { params: Promise<{ tok
     items: {
       id: string; meal: string; grams: number; position: number;
       household_measure_id: number | null; household_measure_qty: number | null;
-      food: { code: string; name: string; group_letter: string } | { code: string; name: string; group_letter: string }[];
+      food:
+        | { code: string; name: string; group_letter: string; energia_kcal: number | null }
+        | { code: string; name: string; group_letter: string; energia_kcal: number | null }[];
     }[];
   };
 
