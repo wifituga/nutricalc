@@ -11,11 +11,11 @@ export default async function EditPatientPage({ params }: { params: Promise<{ id
   if (!patient) notFound();
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-5xl">
       <Link href={`/patients/${id}`} className="text-xs hover:underline" style={{ color: 'var(--ink-soft)' }}>
         ← Volver
       </Link>
-      <h1 className="font-display text-2xl font-semibold mt-2 mb-6" style={{ color: 'var(--ink)' }}>
+      <h1 className="font-display font-semibold mt-2 mb-5" style={{ fontSize: 28, letterSpacing: '-.015em', color: 'var(--ink)' }}>
         Editar paciente
       </h1>
       <PatientForm patient={patient} />

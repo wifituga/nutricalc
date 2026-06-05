@@ -1,37 +1,78 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --ink:        #1a1815;
-  --ink-soft:   #5c574e;
-  --paper:      #f7f4ee;
-  --paper-warm: #efe9dd;
-  --rule:       #d6cfc0;
-  --accent:     #6b4423;
-  --ok:         #2d6a3e;
-  --warn:       #b88200;
-  --danger:     #a8341c;
+  /* ====== SUPERFICIES (claro → estructural) ====== */
+  --paper:        #f6f3ec;  /* fondo app */
+  --paper-warm:   #ece4d6;  /* sidebar / zonas cálidas / columnas de apoyo */
+  --surface:      #fffdf8;  /* card — blanco cálido */
+  --surface-sunk: #efe9dd;  /* inset, header de tabla, input disabled */
+  --rule:         #ddd6c7;  /* hairline / divisor */
+  --rule-strong:  #c5bca8;  /* borde de énfasis */
 
-  --shadow-card:       0 1px 2px rgba(26, 24, 21, 0.04), 0 0 0 0.5px rgba(26, 24, 21, 0.06);
-  --shadow-card-hover: 0 2px 8px rgba(26, 24, 21, 0.06), 0 0 0 0.5px rgba(26, 24, 21, 0.08);
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  /* ====== TINTA ====== */
+  --ink:        #1a1815;    /* texto principal — AAA */
+  --ink-soft:   #524d44;    /* secundario — AA sobre paper-warm */
+  --ink-faint:  #837b6d;    /* labels/terciario — solo ≥16px o caps ≥11px/600 */
+
+  /* ====== ACENTO / MARCA ====== */
+  --accent:      #6b4423;   /* marrón marca, CTA — AAA */
+  --accent-deep: #4d3017;   /* hover / pressed */
+  --accent-soft: #efe4d6;   /* tinte de fondo de marca */
+
+  /* ====== SEMÁFORO (5 niveles, triple-codificado) ====== */
+  --c-def:   #a8341c;  /* deficiente / muy bajo  ▼▼ */
+  --c-low:   #b07000;  /* bajo                   ▼  */
+  --c-ok:    #2d6a3e;  /* en rango               ✓  */
+  --c-high:  #b07000;  /* alto                   ▲  */
+  --c-exc:   #a8341c;  /* excesivo / muy alto    ▲▲ */
+  --c-null:  #837b6d;  /* sin dato               —  */
+
+  --c-def-bg:  #f7e6e1;
+  --c-low-bg:  #f6ecd4;
+  --c-ok-bg:   #e2efe4;
+  --c-null-bg: #ece8e0;
+
+  /* ====== SOMBRA ====== */
+  --shadow-card:       0 1px 2px rgba(46,36,22,.06), 0 1px 1px rgba(46,36,22,.04);
+  --shadow-card-hover: 0 4px 14px rgba(46,36,22,.10), 0 1px 2px rgba(46,36,22,.05);
+  --shadow-pop:        0 12px 32px rgba(46,36,22,.16);
+
+  /* ====== RADIOS ====== */
+  --r-xs: 3px; --r-sm: 5px; --r-md: 7px; --r-lg: 10px; --r-pill: 999px;
+
+  /* ---- aliases retro-compatibles (código existente) ---- */
+  --ok:        var(--c-ok);
+  --warn:      var(--c-low);
+  --danger:    var(--c-def);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
 }
+
+* { box-sizing: border-box; }
 
 html, body {
   background: var(--paper);
   color: var(--ink);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 14px;
+  line-height: 1.5;
+}
+html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+.font-display { font-family: 'Fraunces', Georgia, serif; }
+
+/* Toda cifra/código en mono tabular. .font-mono mantenido como alias. */
+.mono,
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
-.font-display { font-family: 'Fraunces', serif; }
-.font-mono    { font-family: 'JetBrains Mono', monospace; }
-
-.alert-ok     { color: var(--ok); }
-.alert-warn   { color: var(--warn); }
-.alert-danger { color: var(--danger); }
+.alert-ok     { color: var(--c-ok); }
+.alert-warn   { color: var(--c-low); }
+.alert-danger { color: var(--c-def); }
 .alert-neutral{ color: var(--ink-soft); }
 
 /* A11y: focus visible on interactive elements that opt out of native outline */
@@ -39,10 +80,11 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+[role='tab']:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-sm);
 }
 
 /* Number input chrome */
@@ -70,3 +112,11 @@ input[type='number']::-webkit-inner-spin-button {
   border-radius: 3px;
 }
 .scroll-fade::-webkit-scrollbar-track { background: transparent; }
+
+/* Skeleton shimmer */
+@keyframes nc-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+.nc-skeleton {
+  background: var(--surface-sunk);
+  border-radius: var(--r-sm);
+  animation: nc-pulse 1.4s ease-in-out infinite;
+}
