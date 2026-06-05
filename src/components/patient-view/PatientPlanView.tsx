@@ -8,7 +8,7 @@ type Item = {
   position: number;
   household_measure_id: number | null;
   household_measure_qty: number | null;
-  food: { code: string; name: string; group_letter: string; energia_kcal: number | null };
+  food: { code: string; name: string; group_letter: string; per_100g: { energia_kcal: number | null } };
 };
 
 type Plan = {
@@ -67,7 +67,10 @@ export default function PatientPlanView({
     .filter((m) => m.items.length > 0);
 
   const kcalTotal = Math.round(
-    plan.items.reduce((sum, i) => sum + (i.food.energia_kcal != null ? (i.food.energia_kcal * i.grams) / 100 : 0), 0),
+    plan.items.reduce((sum, i) => {
+      const k = i.food.per_100g?.energia_kcal;
+      return sum + (k != null ? (k * i.grams) / 100 : 0);
+    }, 0),
   );
   const kcalStr = kcalTotal.toLocaleString('es-PE').replace(/,/g, ' ');
 

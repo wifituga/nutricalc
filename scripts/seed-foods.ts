@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as dotenv from 'dotenv';
+import { deriveAvailableCarbs } from './lib/availableCarbs';
 
 dotenv.config({ path: '.env.local' });
 
@@ -38,6 +39,7 @@ async function main() {
       const val = item[field];
       per_100g[field] = (val == null || val === '' || val === 'nd') ? null : Number(val);
     }
+    deriveAvailableCarbs(per_100g);
 
     return {
       code: String(item.codigo),

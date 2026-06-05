@@ -6,11 +6,11 @@ import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
 import type { MacroBreakdown } from '@/lib/calculations/macroDistribution';
 import { ageInYears } from '@/lib/calculations/age';
 import { PDF } from './pdfTokens';
+import { FF } from './registerFonts';
 
-// NOTA: se conserva Helvetica (fuente embebida) en vez de registrar Fraunces/
-// Inter/JetBrains Mono vía Font.register con URLs remotas: en serverless
-// (Vercel) una descarga fallida rompería la generación del PDF. Los tokens de
-// color/espaciado del sistema v2 sí se aplican (pdfTokens.ts).
+// Fuentes de marca (Fraunces/Inter/JetBrains Mono) registradas desde el
+// filesystem empaquetado (registerFonts.ts). Si no estuvieran disponibles, FF
+// cae a Helvetica automáticamente y el PDF se genera igual.
 
 function formatQuantity(item: MealPlanItem, measures: Map<number, HouseholdMeasure>): string {
   if (item.household_measure_id) {
@@ -25,22 +25,22 @@ function formatQuantity(item: MealPlanItem, measures: Map<number, HouseholdMeasu
 }
 
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Helvetica', fontSize: 10, color: PDF.ink, padding: 40, paddingBottom: 90, backgroundColor: PDF.paper },
+  page: { fontFamily: FF.sans, fontSize: 10, color: PDF.ink, padding: 40, paddingBottom: 90, backgroundColor: PDF.paper },
 
   // header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  mark: { width: 22, height: 22, borderRadius: PDF.rSm, backgroundColor: PDF.accent, color: '#fff', fontFamily: 'Helvetica-Bold', fontSize: 13, textAlign: 'center', paddingTop: 4, marginRight: 7 },
-  clinicName: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: PDF.accent },
-  planTitle: { fontSize: 17, fontFamily: 'Helvetica-Bold', color: PDF.ink },
-  folio: { fontSize: 8, color: PDF.inkFaint, textAlign: 'right' },
-  meta: { fontSize: 8, color: PDF.inkSoft, textAlign: 'right' },
+  mark: { width: 22, height: 22, borderRadius: PDF.rSm, backgroundColor: PDF.accent, color: '#fff', fontFamily: FF.display, fontWeight: 600, fontSize: 13, textAlign: 'center', paddingTop: 4, marginRight: 7 },
+  clinicName: { fontSize: 12, fontFamily: FF.sansBold, fontWeight: 700, color: PDF.accent },
+  planTitle: { fontSize: 17, fontFamily: FF.display, fontWeight: 600, color: PDF.ink },
+  folio: { fontSize: 8, fontFamily: FF.mono, color: PDF.inkFaint, textAlign: 'right' },
+  meta: { fontSize: 8, fontFamily: FF.mono, color: PDF.inkSoft, textAlign: 'right' },
 
   // patient strip
   strip: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: PDF.surfaceSunk, borderRadius: PDF.rMd, padding: 9, marginBottom: 12 },
   stripCell: { width: '25%', paddingVertical: 2 },
   stripLabel: { fontSize: 7, color: PDF.inkFaint, textTransform: 'uppercase', letterSpacing: 0.5 },
-  stripValue: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: PDF.ink, marginTop: 1 },
+  stripValue: { fontSize: 10, fontFamily: FF.sansBold, fontWeight: 700, color: PDF.ink, marginTop: 1 },
 
   // disclaimer
   disclaimerBanner: { padding: 7, backgroundColor: PDF.accentSoft, borderRadius: PDF.rSm, borderLeftWidth: 2, borderLeftColor: PDF.accent, marginBottom: 12 },
@@ -48,28 +48,28 @@ const styles = StyleSheet.create({
 
   // meals
   section: { marginBottom: 12 },
-  mealHeader: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: PDF.accentDeep, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: PDF.rule, marginBottom: 3 },
+  mealHeader: { fontSize: 11, fontFamily: FF.sansBold, fontWeight: 700, color: PDF.accentDeep, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: PDF.rule, marginBottom: 3 },
   row: { flexDirection: 'row', paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: PDF.surfaceSunk },
-  code: { width: 38, fontSize: 9, color: PDF.accent },
+  code: { width: 38, fontSize: 9, fontFamily: FF.mono, color: PDF.accent },
   foodName: { flex: 1, fontSize: 9 },
-  grams: { width: 140, textAlign: 'right', fontSize: 9, color: PDF.inkSoft },
-  kcal: { width: 52, textAlign: 'right', fontSize: 9 },
+  grams: { width: 140, textAlign: 'right', fontSize: 9, fontFamily: FF.mono, color: PDF.inkSoft },
+  kcal: { width: 52, textAlign: 'right', fontSize: 9, fontFamily: FF.mono },
 
   // boxes
   box: { marginTop: 10, borderWidth: 1, borderColor: PDF.rule, borderRadius: PDF.rMd, padding: 10, backgroundColor: PDF.surface },
-  boxTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 6, color: PDF.ink },
+  boxTitle: { fontSize: 10, fontFamily: FF.sansBold, fontWeight: 700, marginBottom: 6, color: PDF.ink },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 1.5, borderBottomWidth: 1, borderBottomColor: PDF.surfaceSunk },
   totalLabel: { fontSize: 9, color: PDF.inkSoft, flex: 1 },
-  totalValue: { fontSize: 9, textAlign: 'right', width: 110 },
-  macroValue: { fontSize: 9, textAlign: 'right', width: 180 },
+  totalValue: { fontSize: 9, textAlign: 'right', width: 110, fontFamily: FF.mono },
+  macroValue: { fontSize: 9, textAlign: 'right', width: 180, fontFamily: FF.mono },
   partialNote: { fontSize: 7.5, color: PDF.cLow, marginTop: 5, fontStyle: 'italic' },
   alertWarn: { color: PDF.cLow }, alertDanger: { color: PDF.cDef }, alertOk: { color: PDF.cOk },
 
   // signature + footer
   sign: { marginTop: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  signName: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: PDF.ink },
+  signName: { fontSize: 13, fontFamily: FF.display, fontWeight: 600, color: PDF.ink },
   signSub: { fontSize: 8, color: PDF.inkSoft, marginTop: 2 },
-  shareNote: { fontSize: 7.5, color: PDF.inkFaint, textAlign: 'right', maxWidth: 200 },
+  shareNote: { fontSize: 7.5, fontFamily: FF.mono, color: PDF.inkFaint, textAlign: 'right', maxWidth: 200 },
 
   footer: { position: 'absolute', bottom: 28, left: 40, right: 40, borderTopWidth: 1, borderTopColor: PDF.rule, paddingTop: 6 },
   footerDisclaimer: { fontSize: 7, color: PDF.cDef, marginBottom: 2 },

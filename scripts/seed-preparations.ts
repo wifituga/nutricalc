@@ -21,6 +21,7 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as dotenv from 'dotenv';
+import { deriveAvailableCarbs } from './lib/availableCarbs';
 
 dotenv.config({ path: '.env.local' });
 
@@ -82,6 +83,7 @@ async function main() {
     for (const f of NUTRIENT_FIELDS) per_100g[f] = e[f];
     // Field that exists in BD schema but not in S data
     per_100g['beta_caroteno_ug'] = null;
+    deriveAvailableCarbs(per_100g);
     return {
       code,
       group_letter: 'S',
