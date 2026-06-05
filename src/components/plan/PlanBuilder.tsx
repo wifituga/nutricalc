@@ -7,7 +7,8 @@ import type { Food, MealPlan, MealPlanItem, Patient } from '@/lib/types';
 import { MEAL_LABELS, MEAL_SLOTS, calculateTotals } from '@/lib/nutrition';
 import type { ResolvedTargets } from '@/lib/calculations/nutrientTargets';
 import type { VCTBreakdown } from '@/lib/calculations/energyRequirement';
-import { BarChart3, X, Eye, ExternalLink, Copy, ShoppingBag } from 'lucide-react';
+import { BarChart3, X, Eye, ExternalLink, Copy, ShoppingBag, FileDown, MoreHorizontal, StickyNote, Trash2 } from 'lucide-react';
+import { fmtNum } from '@/lib/patientDisplay';
 import { ClinicalDisclaimer } from '@/components/ui/ClinicalDisclaimer';
 import { ageInYears } from '@/lib/calculations/age';
 import { calculateAbsorbableIron, shouldShowAbsorbableIron } from '@/lib/calculations/ironBioavailability';
@@ -32,6 +33,7 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
   const [activeMeal, setActiveMeal] = useState<string>('desayuno');
   const [duplicating, setDuplicating] = useState(false);
   const [showTotals, setShowTotals] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [planName, setPlanName] = useState(plan.name);
   const [planDate, setPlanDate] = useState(plan.plan_date);
@@ -169,6 +171,32 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
     router.push(`/patients/${patient.id}/plans/${created.id}`);
   }
 
+  async function editNotes() {
+    setMenuOpen(false);
+    const next = window.prompt('Notas internas del plan:', plan.notes ?? '');
+    if (next == null) return;
+    await fetch(`/api/plans/${plan.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: next }),
+    });
+  }
+
+  async function deletePlan() {
+    setMenuOpen(false);
+    if (!window.confirm('¿Eliminar este plan? Esta acción no se puede deshacer.')) return;
+    const res = await fetch(`/api/plans/${plan.id}`, { method: 'DELETE' });
+    if (res.ok) router.push(`/patients/${patient.id}`);
+    else window.alert('Error al eliminar el plan');
+  }
+
+  // kcal por comida para las pestañas
+  const kcalByMeal = new Map<string, number>();
+  for (const slot of MEAL_SLOTS) {
+    const t = calculateTotals(items.filter((i) => i.meal === slot), foodsMap, cookingFactorsMap);
+    kcalByMeal.set(slot, Math.round(t.energia_kcal?.value ?? 0));
+  }
+
   const macroResult = vct && ageYears != null
     ? calculateMacroDistribution(vct.vct, macroMode, {
         ageYears,
@@ -212,17 +240,17 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
         <div className="flex flex-col gap-3">
           <Link
             href={`/patients/${patient.id}`}
-            className="text-xs inline-flex items-center gap-1 hover:underline w-fit"
+            className="text-[12.5px] inline-flex items-center gap-1 hover:underline w-fit"
             style={{ color: 'var(--ink-soft)' }}
           >
             ← {patient.full_name}
           </Link>
-          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <input
               value={planName}
               onChange={(e) => setPlanName(e.target.value)}
               onBlur={savePlanMeta}
-              className="font-display text-xl font-semibold bg-transparent border-b min-w-0 flex-1"
+              className="font-display text-xl font-semibold bg-transparent border-b min-w-0 flex-1 focus:outline-none"
               style={{ color: 'var(--ink)', borderColor: 'var(--rule)' }}
             />
             <input
@@ -230,81 +258,84 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
               value={planDate}
               onChange={(e) => setPlanDate(e.target.value)}
               onBlur={savePlanMeta}
-              className="font-mono text-sm bg-transparent border rounded px-2 py-1.5 w-full sm:w-auto"
+              className="mono text-sm bg-transparent border rounded-[5px] px-2 py-1.5 w-full sm:w-auto"
               style={{ color: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
             />
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Primaria: PDF */}
+              <a
+                href={`/api/plans/${plan.id}/pdf`}
+                target="_blank"
+                className="inline-flex items-center gap-1.5 rounded-[7px] text-sm font-semibold"
+                style={{ background: 'var(--accent)', color: 'var(--paper)', padding: '8px 14px' }}
+              >
+                <FileDown size={15} /> <span className="hidden sm:inline">Exportar </span>PDF
+              </a>
+              {/* Ghost: Vista paciente */}
               {plan.share_token && (
                 <a
                   href={`/p/${plan.share_token}`}
                   target="_blank"
                   rel="noopener"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors"
-                  style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+                  className="inline-flex items-center gap-1.5 rounded-[7px] border text-sm font-medium"
+                  style={{ background: 'var(--surface)', borderColor: 'var(--rule-strong)', color: 'var(--ink)', padding: '7px 12px' }}
+                  title="Abrir la vista que ve el paciente"
                 >
-                  <Eye size={13} /> <span className="hidden sm:inline">Modo paciente</span><span className="sm:hidden">Paciente</span> <ExternalLink size={11} />
+                  <Eye size={14} /> <span className="hidden md:inline">Vista paciente</span><span className="md:hidden">Vista</span> <ExternalLink size={11} />
                 </a>
               )}
-              <button
-                type="button"
-                onClick={duplicatePlan}
-                disabled={duplicating}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors disabled:opacity-50"
-                style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
-                title="Crear copia con los mismos alimentos en otra fecha"
-              >
-                <Copy size={13} /> {duplicating ? 'Duplicando…' : 'Duplicar'}
-              </button>
-              <a
-                href={`/api/plans/${plan.id}/shopping-list`}
-                target="_blank"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm bg-white hover:bg-[color:var(--paper-warm)] transition-colors"
-                style={{ borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
-                title="Lista de compras agregada"
-              >
-                <ShoppingBag size={13} /> Compras
-              </a>
-              <a
-                href={`/api/plans/${plan.id}/pdf`}
-                target="_blank"
-                className="px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-[color:var(--accent)] hover:text-white transition-colors"
-                style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-              >
-                PDF
-              </a>
+              {/* Menú ⋯ */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((o) => !o)}
+                  aria-label="Más acciones"
+                  className="grid place-items-center rounded-[7px] border"
+                  style={{ width: 36, height: 36, background: 'var(--surface)', borderColor: 'var(--rule-strong)', color: 'var(--ink-soft)' }}
+                >
+                  <MoreHorizontal size={17} />
+                </button>
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1 z-40 w-52 rounded-[7px] border py-1" style={{ background: 'var(--surface)', borderColor: 'var(--rule)', boxShadow: 'var(--shadow-pop)' }}>
+                      <MenuItem icon={<Copy size={14} />} onClick={() => { setMenuOpen(false); duplicatePlan(); }} disabled={duplicating}>
+                        {duplicating ? 'Duplicando…' : 'Duplicar plan'}
+                      </MenuItem>
+                      <a href={`/api/plans/${plan.id}/shopping-list`} target="_blank" onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2 text-sm row-hover" style={{ color: 'var(--ink)' }}>
+                        <ShoppingBag size={14} style={{ color: 'var(--ink-soft)' }} /> Lista de compras
+                      </a>
+                      <MenuItem icon={<StickyNote size={14} />} onClick={editNotes}>Notas del plan</MenuItem>
+                      <div className="my-1 border-t" style={{ borderColor: 'var(--rule)' }} />
+                      <MenuItem icon={<Trash2 size={14} />} onClick={deletePlan} danger>Eliminar plan</MenuItem>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Meal tabs */}
-        <div
-          className="flex gap-1 border-b overflow-x-auto scroll-fade"
-          style={{ borderColor: 'var(--rule)' }}
-        >
+        <div className="flex gap-0.5 border-b overflow-x-auto scroll-fade" style={{ borderColor: 'var(--rule)' }}>
           {MEAL_SLOTS.map((slot) => {
             const active = slot === activeMeal;
             const count = items.filter((i) => i.meal === slot).length;
+            const kcal = kcalByMeal.get(slot) ?? 0;
             return (
               <button
                 key={slot}
                 onClick={() => setActiveMeal(slot)}
-                className="px-3 sm:px-4 py-2 text-sm font-display transition-colors relative whitespace-nowrap shrink-0"
-                style={{
-                  color: active ? 'var(--accent)' : 'var(--ink-soft)',
-                  fontWeight: active ? 600 : 400,
-                  borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-                  marginBottom: -1,
-                }}
+                className="relative flex flex-col items-start whitespace-nowrap shrink-0"
+                style={{ padding: '8px 14px', borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -1 }}
               >
-                {MEAL_LABELS[slot]}
-                {count > 0 && (
-                  <span
-                    className="ml-1.5 font-mono text-xs"
-                    style={{ color: 'var(--ink-soft)' }}
-                  >
-                    {count}
-                  </span>
-                )}
+                <span className="text-[13.5px] font-semibold" style={{ color: active ? 'var(--accent-deep)' : 'var(--ink-faint)' }}>
+                  {MEAL_LABELS[slot]}
+                  {count > 0 && <span className="mono ml-1.5 text-[10.5px]" style={{ color: 'var(--ink-faint)' }}>{count}</span>}
+                </span>
+                <span className="mono text-[10.5px]" style={{ color: active ? 'var(--ink-soft)' : 'var(--ink-faint)' }}>
+                  {kcal > 0 ? `${fmtNum(kcal)} kcal` : '—'}
+                </span>
               </button>
             );
           })}
@@ -343,12 +374,12 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
       {/* Mobile: FAB + drawer */}
       <button
         onClick={() => setShowTotals(true)}
-        className="lg:hidden fixed bottom-4 right-4 z-40 rounded-full px-4 py-3 flex items-center gap-2 text-sm font-medium"
-        style={{ background: 'var(--accent)', color: 'var(--paper)', boxShadow: 'var(--shadow-card-hover)' }}
+        className="lg:hidden fixed bottom-4 right-4 z-40 rounded-full px-4 py-3 flex items-center gap-2 text-sm font-semibold"
+        style={{ background: 'var(--accent)', color: 'var(--paper)', boxShadow: 'var(--shadow-pop)' }}
         aria-label="Abrir panel de totales y macros"
       >
         <BarChart3 size={16} />
-        {Math.round(totals.energia_kcal?.value ?? 0)} kcal
+        <span className="mono">{fmtNum(Math.round(totals.energia_kcal?.value ?? 0))}</span> kcal
       </button>
 
       {showTotals && (
@@ -373,5 +404,28 @@ export default function PlanBuilder({ plan, patient, initialItems, targets, vct 
         </div>
       )}
     </div>
+  );
+}
+
+function MenuItem({
+  icon, children, onClick, disabled, danger,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm row-hover disabled:opacity-50"
+      style={{ color: danger ? 'var(--c-def)' : 'var(--ink)' }}
+    >
+      <span style={{ color: danger ? 'var(--c-def)' : 'var(--ink-soft)' }}>{icon}</span>
+      {children}
+    </button>
   );
 }

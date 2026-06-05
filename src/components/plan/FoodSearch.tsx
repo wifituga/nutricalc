@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Search } from 'lucide-react';
 import type { Food } from '@/lib/types';
 
 const GROUPS = [
@@ -108,28 +109,28 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
 
   return (
     <div ref={wrapperRef} className="relative flex gap-2">
-      <div className="flex-1 relative">
+      <div
+        className="flex-1 flex items-center gap-2.5 rounded-[7px] border"
+        style={{ background: 'var(--surface)', borderColor: 'var(--rule-strong)', padding: '10px 14px' }}
+      >
+        <Search size={16} style={{ color: 'var(--ink-faint)' }} />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Buscar alimento o código TPCA (ej. A49, A4...)"
-          className="w-full px-3 py-2 rounded border text-sm focus:outline-none"
-          style={{ background: 'var(--paper-warm)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
+          placeholder="Buscar alimento o código TPCA (ej. A49)…"
+          className="flex-1 bg-transparent text-sm focus:outline-none"
+          style={{ color: 'var(--ink)' }}
         />
-        {loading && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--ink-soft)' }}>
-            Buscando...
-          </span>
-        )}
+        {loading && <span className="text-[11px] shrink-0" style={{ color: 'var(--ink-faint)' }}>Buscando…</span>}
       </div>
 
       <select
         value={group}
         onChange={(e) => setGroup(e.target.value)}
-        className="px-2 py-2 rounded border text-sm"
-        style={{ background: 'var(--paper-warm)', borderColor: 'var(--rule)', color: 'var(--ink-soft)' }}
+        className="rounded-[7px] border text-sm"
+        style={{ background: 'var(--surface)', borderColor: 'var(--rule-strong)', color: 'var(--ink-soft)', padding: '0 10px' }}
       >
         {GROUPS.map((g) => (
           <option key={g.letter} value={g.letter}>{g.label}</option>
@@ -138,25 +139,19 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
 
       {open && results.length > 0 && (
         <div
-          className="absolute top-full left-0 right-12 z-50 mt-1 rounded-lg border shadow-sm overflow-hidden"
-          style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+          className="absolute top-full left-0 right-12 z-50 mt-1.5 rounded-[10px] border overflow-hidden"
+          style={{ background: 'var(--surface)', borderColor: 'var(--rule)', boxShadow: 'var(--shadow-pop)' }}
         >
           {results.map((food, i) => (
             <button
               key={food.id}
               onClick={() => handleSelect(food)}
               onMouseEnter={() => setActive(i)}
-              className="w-full text-left px-4 py-2.5 border-b last:border-b-0 transition-colors"
-              style={{
-                borderColor: 'var(--rule)',
-                background: i === active ? 'var(--paper-warm)' : 'transparent',
-              }}
+              className="w-full text-left border-b last:border-b-0 transition-colors"
+              style={{ borderColor: 'var(--rule)', background: i === active ? 'var(--accent-soft)' : 'transparent', padding: '9px 14px' }}
             >
-              <div className="flex items-center gap-2">
-                <span
-                  className="font-mono text-xs shrink-0"
-                  style={{ color: 'var(--accent)', minWidth: '2.5rem' }}
-                >
+              <div className="flex items-center gap-2.5">
+                <span className="mono text-[11.5px] font-semibold shrink-0" style={{ color: 'var(--accent)', minWidth: '2.6rem' }}>
                   {food.code}
                 </span>
                 <span className="text-sm truncate" style={{ color: 'var(--ink)' }} title={food.name}>
@@ -164,21 +159,15 @@ export default function FoodSearch({ onSelect }: { onSelect: (food: Food) => voi
                 </span>
                 {food.group_letter === 'S' && (
                   <span
-                    className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-                    style={{
-                      background: 'var(--paper-warm)',
-                      color: 'var(--accent)',
-                      border: '1px solid var(--rule)',
-                    }}
+                    className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0"
+                    style={{ background: 'var(--accent-soft)', color: 'var(--accent-deep)', border: '1px solid #e0cfba' }}
                     title="Preparación completa (TPCA 2025 grupo S)"
                   >
                     prep
                   </span>
                 )}
-                <span className="text-xs ml-auto shrink-0" style={{ color: 'var(--ink-soft)' }}>
-                  {food.per_100g.energia_kcal != null
-                    ? `${food.per_100g.energia_kcal} kcal`
-                    : '—'}
+                <span className="mono text-[11.5px] ml-auto shrink-0" style={{ color: food.per_100g.energia_kcal != null ? 'var(--ink-soft)' : 'var(--c-null)' }}>
+                  {food.per_100g.energia_kcal != null ? `${food.per_100g.energia_kcal} kcal/100g` : '—'}
                 </span>
               </div>
             </button>
